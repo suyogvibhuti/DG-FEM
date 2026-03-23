@@ -9,6 +9,9 @@ using namespace std;
 const int K = 32;
 const int ORDER = 1; //so most things are 2 (basis functions)
 
+void dgfem();
+void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep);
+
 int main() {
 	// differential cell dx by dy, possesses dq/dt, flux on each side fx(q) for left and fx'(q) for right
 	// dq/dt handled with ODE solver, df(q)/dx handled with PDE solver
@@ -43,7 +46,7 @@ int main() {
 	return 0;
 }
 
-int dgfem() {
+void dgfem() {
 	double elementlist[K];
 	double q[K];
 
@@ -52,11 +55,10 @@ int dgfem() {
 
 	// Copied from main function for now!
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
-	double a[2][K];
     double tau = 2 * M_PI / static_cast<double>(K);
 	for (int i = 0; i < K; i++) {
-		a[0][i] = sin(tau * i);
-		a[1][i] = sin(tau * (i + 1));
+		a[0][i] = sin(tau * static_cast<double>(i));
+		a[1][i] = sin(tau * static_cast<double>(i + 1));
 	}
     cout << a;
 
@@ -71,7 +73,7 @@ int dgfem() {
 	aprime[1][0] = c * (3 * a[0][0] - a[1][0] + 2 * a[1][K - 1]);
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t, make q list: q_i = a_0i(1 - x) + a_1i(x). Output q list?
-    double time = 10;
+    double time = 1;
     double tStep = 0.1;
     for (int count = 0; count < time; count++) {
         forwardEuler(a, aprime, tStep);
@@ -85,10 +87,24 @@ int dgfem() {
 	    aprime[1][0] = c * (3 * a[0][0] - a[1][0] + 2 * a[1][K - 1]);
         cout << a;
     }
-	return 0;
+
+    // write results with fstream
+    double aOrig[2][K];
+	for (int i = 0; i < K; i++) {
+		aOrig[0][i] = sin(tau * static_cast<double>(i));
+		aOrig[1][i] = sin(tau * static_cast<double>(i + 1));
+	}
+    ofstream file("results.txt");
+    for (int i = 0; i < K; i++) {
+        file << aOrig[0][i] << "," << aOrig[1][i] << "\n";
+    }
+    file << "\n";
+    for (int i = 0; i < K; i++) {
+        file << a[0][i] << "," << a[1][i] << "\n";
+    }
 }
 
-double forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
+void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < K; j++) {
             a[i][j] = a[i][j] + tStep * aprime[i][j];
