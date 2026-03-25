@@ -11,6 +11,7 @@ const int ORDER = 1; //so most things are 2 (basis functions)
 
 void dgfem();
 void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep);
+void massMatrix(double (&mM)[2][2], bool inv);
 
 int main() {
 	// differential cell dx by dy, possesses dq/dt, flux on each side fx(q) for left and fx'(q) for right
@@ -68,15 +69,17 @@ void dgfem() {
     }
     file << "\n";
 
+	// aprime = invM[cKa - f]
+
 	int c = 3; // dummy value for fluid velocity, make dgfem parameter later
 	for (int i = 1; i < K; i++) {
 		// Formulas derived from page in notebook, lots of matrix multiplication
-		aprime[0][i] = c * (-3 * a[0][i] - a[1][i] - 4 * a[1][i - 1]);
-		aprime[1][i] = c * (3 * a[0][i] - a[1][i] + 2 * a[1][i - 1]);
+		aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
+		aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]);
 	}
 	// Wraparound condition, so that values on right affect values on left
-	aprime[0][0] = c * (-3 * a[0][0] - a[1][0] - 4 * a[1][K - 1]);
-	aprime[1][0] = c * (3 * a[0][0] - a[1][0] + 2 * a[1][K - 1]);
+	aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
+	aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]);
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t, make q list: q_i = a_0i(1 - x) + a_1i(x). Output q list?
     double time = 1;
@@ -86,12 +89,12 @@ void dgfem() {
             forwardEuler(a, aprime, tStep);
             for (int i = 1; i < K; i++) {
 		        // Formulas derived from page in notebook, lots of matrix multiplication
-		        aprime[0][i] = c * (-3 * a[0][i] - a[1][i] - 4 * a[1][i - 1]);
-		        aprime[1][i] = c * (3 * a[0][i] - a[1][i] + 2 * a[1][i - 1]);
+		        aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
+		        aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]);
 	        }
 	        // Wraparound condition, so that values on right affect values on left
-	        aprime[0][0] = c * (-3 * a[0][0] - a[1][0] - 4 * a[1][K - 1]);
-	        aprime[1][0] = c * (3 * a[0][0] - a[1][0] + 2 * a[1][K - 1]);
+	        aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
+	        aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]);
 
             // write results into file
             for (int i = 0; i < K; i++) {
@@ -118,30 +121,35 @@ void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
     }
 }
 
-int massMatrix() {
-	double mM[2][2];
-	// For simplified form, order 1
-	mM[0][0], mM[1][1] = 1 / 3;
-	mM[0][1], mM[1][0] = 1 / 6;
-
-	// just cuz i know it already
-	double inversemM[2][2];
-	inversemM[0][0], inversemM[1][1] = 4;
-	inversemM[0][1], inversemM[1][0] = -2;
-	return 0;
+void massMatrix(double (&mM)[2][2], bool inv) {
+	if (inv) {
+		// For returning the inverse mass matrix
+		mM[0][0] = 4;
+		mM[1][1] = 4;
+		mM[0][1] = -2;
+		mM[1][0] = -2;
+	} else {
+		// For returning the standard mass matrix
+		mM[0][0] = 1/3;
+		mM[1][1] = 1/3;
+		mM[0][1] = 1/6;
+		mM[1][0] = 1/6;
+	}
 }
 
-int stiffnessMatrix() {
-	double sM[2][2];
+void stiffnessMatrix(double (&sM)[2][2]) {
 	// For simplified form, order 1
 	// first term is row, second term is column
-	sM[0][0], sM[0][1] = - 1 / 2;
-	sM[1][0], sM[1][1] = 1 / 2;
-	return 0;
+	sM[0][0] = -1/2;
+	sM[0][1] = -1/2;
+	sM[1][0] = 1/2;
+	sM[1][1] = 1/2;
 }
 
 int fluxTerm() {
 	double fT[2];
 	// For simplified form, order 1
+	// fT[0] = c * a1;
+	// fT[1] = c * a2;
 	return 0;
 }
