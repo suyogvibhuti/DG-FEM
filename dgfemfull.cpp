@@ -82,8 +82,9 @@ void dgfem() {
 	aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]);
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t, make q list: q_i = a_0i(1 - x) + a_1i(x). Output q list?
-    double time = 100;
+    double time = 1000;
     double tStep = 0.01;
+	int writeStep = 10;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
         for (int count = 0; count < (1.0 / tStep); count++) {
 			cout << a[0][6] << "\n";
@@ -98,17 +99,19 @@ void dgfem() {
 	        aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]);
 
             /** // write results into file
-            for (int i = 0; i < K; i++) {
+			for (int i = 0; i < K; i++) {
                 file << a[0][i] << "," << a[1][i] << "\n";
             }
             file << "\n"; **/
         }
 
-        // write results into file
-        for (int i = 0; i < K; i++) {
-            file << a[0][i] << "," << a[1][i] << "\n";
-        }
-        file << "\n";
+		// write results into file
+		if (secondsCount % writeStep == 0) {
+			for (int i = 0; i < K; i++) {
+                file << a[0][i] << "," << a[1][i] << "\n";
+            }
+            file << "\n";
+		}
     }
 
     file.close();
