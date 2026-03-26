@@ -97,18 +97,18 @@ void dgfem() {
 	        aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
 	        aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]);
 
-            /** // write results into file
+            // write results into file
             for (int i = 0; i < K; i++) {
                 file << a[0][i] << "," << a[1][i] << "\n";
             }
-            file << "\n"; **/
+            file << "\n";
         }
 
-        // write results into file
+        /** // write results into file
         for (int i = 0; i < K; i++) {
             file << a[0][i] << "," << a[1][i] << "\n";
         }
-        file << "\n";
+        file << "\n"; **/
     }
 
     file.close();
