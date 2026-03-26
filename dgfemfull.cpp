@@ -83,7 +83,7 @@ void dgfem() {
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t, make q list: q_i = a_0i(1 - x) + a_1i(x). Output q list?
     double time = 100;
-    double tStep = 0.1;
+    double tStep = 0.01;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
         for (int count = 0; count < (1.0 / tStep); count++) {
 			cout << a[0][6] << "\n";
