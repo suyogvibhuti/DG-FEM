@@ -12,6 +12,10 @@ const int ORDER = 1; //so most things are 2 (basis functions)
 void dgfem();
 void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep);
 void massMatrix(double (&mM)[2][2], bool inv);
+void stiffnessMatrix(double (&sM)[2][2]);
+void fluxTerm(double (&fT)[2], double c, double a1, double a2);
+void matrixColMult(double (&matrix2D)[2][2], double (&matrix1D)[2], double (&resultMatrix)[2]);
+void numericalIntegration(double a[2][K], double c, int i, double (&resultMatrix)[2]);
 
 int main() {
 	// differential cell dx by dy, possesses dq/dt, flux on each side fx(q) for left and fx'(q) for right
@@ -69,17 +73,19 @@ void dgfem() {
     }
     file << "\n";
 
-	// aprime = invM[cKa - f]
-
-	int c = 3; // dummy value for fluid velocity, make dgfem parameter later
-	for (int i = 1; i < K; i++) {
-		// Formulas derived from page in notebook, lots of matrix multiplication
+	double c = 3; // dummy value for fluid velocity, make dgfem parameter later
+	double aprimei[2];
+	for (int i = 0; i < K; i++) {
+		/** // Formulas derived from page in notebook, lots of matrix multiplication
 		aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
-		aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]);
+		aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]); **/
+		numericalIntegration(a, c, i, aprimei);
+		aprime[0][i] = aprimei[0];
+		aprime[1][i] = aprimei[1];
 	}
 	// Wraparound condition, so that values on right affect values on left
-	aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
-	aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]);
+	/** aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
+	aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]); **/
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t, make q list: q_i = a_0i(1 - x) + a_1i(x). Output q list?
     double time = 1000;
@@ -89,14 +95,17 @@ void dgfem() {
         for (int count = 0; count < (1.0 / tStep); count++) {
 			cout << a[0][6] << "\n";
             forwardEuler(a, aprime, tStep);
-            for (int i = 1; i < K; i++) {
+            for (int i = 0; i < K; i++) {
 		        // Formulas derived from page in notebook, lots of matrix multiplication
-		        aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
-		        aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]);
+		        /** aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
+		        aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]); **/
+				numericalIntegration(a, c, i, aprimei);
+				aprime[0][i] = aprimei[0];
+				aprime[1][i] = aprimei[1];
 	        }
 	        // Wraparound condition, so that values on right affect values on left
-	        aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
-	        aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]);
+	        /** aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
+	        aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]); **/
 
             /** // write results into file
 			for (int i = 0; i < K; i++) {
@@ -150,10 +159,34 @@ void stiffnessMatrix(double (&sM)[2][2]) {
 	sM[1][1] = 1/2;
 }
 
-int fluxTerm() {
-	double fT[2];
+void fluxTerm(double (&fT)[2], double c, double a1, double a2) {
 	// For simplified form, order 1
-	// fT[0] = c * a1;
-	// fT[1] = c * a2;
-	return 0;
+	fT[0] = -c * a1;
+	fT[1] = c * a2;
+}
+
+void matrixColMult(double (&matrix2D)[2][2], double (&matrix1D)[2], double (&resultMatrix)[2]) {
+	// For simplified form, order 1. To extend, don't hardcode the size of the matrices and use loops
+	resultMatrix[0] = matrix1D[0] * matrix2D[0][0] + matrix1D[1] * matrix2D[0][1];
+	resultMatrix[0] = matrix1D[0] * matrix2D[1][0] + matrix1D[1] * matrix2D[1][1];
+}
+
+void numericalIntegration(double a[2][K], double c, int i, double (&resultMatrix)[2]) {
+	// aprime = invM[cKa - f], K refers to stiffness matrix sM
+	double sM[2][2];
+	stiffnessMatrix(sM);
+	double acol[2] = {a[0][i], a[1][i]};
+	double Ka[2];
+	matrixColMult(sM, acol, Ka);
+	double f[2];
+	// For wraparound condition, so that values on right affect values on left
+	if (i > 0) {
+		fluxTerm(f, c, a[1][i - 1], a[1][i]);
+	} else {
+		fluxTerm(f, c, a[1][K - 1], a[1][i]);
+	}
+	double term2[2] = {c * Ka[0] - f[0], c * Ka[1] - f[1]};
+	double invM[2][2];
+	massMatrix(invM, true);
+	matrixColMult(invM, term2, resultMatrix);
 }
