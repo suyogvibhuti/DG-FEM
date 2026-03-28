@@ -80,6 +80,7 @@ void dgfem() {
 		aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
 		aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]); **/
 		numericalIntegration(a, c, i, aprimei);
+		cout << aprimei[0] << "," << aprimei[1] << "\n";
 		aprime[0][i] = aprimei[0];
 		aprime[1][i] = aprimei[1];
 	}
@@ -137,38 +138,38 @@ void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
 void massMatrix(double (&mM)[2][2], bool inv) {
 	if (inv) {
 		// For returning the inverse mass matrix
-		mM[0][0] = 4;
-		mM[1][1] = 4;
-		mM[0][1] = -2;
-		mM[1][0] = -2;
+		mM[0][0] = 4.0;
+		mM[1][1] = 4.0;
+		mM[0][1] = -2.0;
+		mM[1][0] = -2.0;
 	} else {
 		// For returning the standard mass matrix
-		mM[0][0] = 1/3;
-		mM[1][1] = 1/3;
-		mM[0][1] = 1/6;
-		mM[1][0] = 1/6;
+		mM[0][0] = 1.0 / 3.0;
+		mM[1][1] = 1.0 / 3.0;
+		mM[0][1] = 1.0 / 6.0;
+		mM[1][0] = 1.0 /6.0;
 	}
 }
 
 void stiffnessMatrix(double (&sM)[2][2]) {
 	// For simplified form, order 1
 	// first term is row, second term is column
-	sM[0][0] = -1/2;
-	sM[0][1] = -1/2;
-	sM[1][0] = 1/2;
-	sM[1][1] = 1/2;
+	sM[0][0] = -1.0 / 2.0;
+	sM[0][1] = -1.0 / 2.0;
+	sM[1][0] = 1.0 / 2.0;
+	sM[1][1] = 1.0 / 2.0;
 }
 
 void fluxTerm(double (&fT)[2], double c, double a1, double a2) {
 	// For simplified form, order 1
-	fT[0] = -c * a1;
+	fT[0] = -1 * c * a1;
 	fT[1] = c * a2;
 }
 
 void matrixColMult(double (&matrix2D)[2][2], double (&matrix1D)[2], double (&resultMatrix)[2]) {
 	// For simplified form, order 1. To extend, don't hardcode the size of the matrices and use loops
 	resultMatrix[0] = matrix1D[0] * matrix2D[0][0] + matrix1D[1] * matrix2D[0][1];
-	resultMatrix[0] = matrix1D[0] * matrix2D[1][0] + matrix1D[1] * matrix2D[1][1];
+	resultMatrix[1] = matrix1D[0] * matrix2D[1][0] + matrix1D[1] * matrix2D[1][1];
 }
 
 void numericalIntegration(double a[2][K], double c, int i, double (&resultMatrix)[2]) {
