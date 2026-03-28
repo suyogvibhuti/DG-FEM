@@ -85,7 +85,7 @@ void dgfem() {
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
     double time = 1000;
-    double tStep = 0.01;
+    double tStep = 0.001;
 	int writeStep = 10;
 	int elapsedTimeCounter = 1;
 	int writeCount = 1;
