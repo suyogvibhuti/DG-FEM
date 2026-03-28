@@ -62,8 +62,10 @@ void dgfem() {
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
     double tau = 2 * M_PI / static_cast<double>(K);
 	for (int i = 0; i < K; i++) {
-		a[0][i] = static_cast<double>(static_cast<int>(sin(tau * static_cast<double>(i))));
-		a[1][i] = static_cast<double>(static_cast<int>(sin(tau * static_cast<double>(i + 1))));
+		/** a[0][i] = static_cast<double>(static_cast<int>(sin(tau * static_cast<double>(i))));
+		a[1][i] = static_cast<double>(static_cast<int>(sin(tau * static_cast<double>(i + 1)))); **/
+		a[0][i] = i;
+		a[1][i] = i + 1;
 	}
 
     // First part of output, for original values
