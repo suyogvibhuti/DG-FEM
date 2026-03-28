@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cmath>
 using namespace std;
-const int K = 32;
+const int K = 8;
 const int ORDER = 1; //so most things are 2 (basis functions)
 
 void dgfem();
@@ -84,9 +84,9 @@ void dgfem() {
 	}
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
-    double time = 10000;
-    double tStep = 0.001;
-	int writeStep = 100;
+    double time = 100;
+    double tStep = 0.01;
+	int writeStep = 1;
 	int elapsedTimeCounter = 1;
 	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
