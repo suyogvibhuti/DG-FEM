@@ -84,14 +84,13 @@ void dgfem() {
 	}
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
-    double time = 1000;
+    double time = 10000;
     double tStep = 0.001;
-	int writeStep = 10;
+	int writeStep = 100;
 	int elapsedTimeCounter = 1;
 	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
         for (int count = 0; count < (1.0 / tStep); count++) {
-			cout << a[0][6] << "\n";
             forwardEuler(a, aprime, tStep);
             for (int i = 0; i < K; i++) {
 		        // Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
@@ -107,6 +106,7 @@ void dgfem() {
             	}
             	file << "\n";
 				writeCount++;
+				cout << a[0][6] << "\n";
 			}
 			elapsedTimeCounter++;
         }
