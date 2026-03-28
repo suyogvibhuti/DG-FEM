@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cmath>
 using namespace std;
-const int K = 8;
+const int K = 32;
 const int ORDER = 1; //so most things are 2 (basis functions)
 
 void dgfem();
@@ -62,8 +62,8 @@ void dgfem() {
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
     double tau = 2 * M_PI / static_cast<double>(K);
 	for (int i = 0; i < K; i++) {
-		a[0][i] = sin(tau * static_cast<double>(i));
-		a[1][i] = sin(tau * static_cast<double>(i + 1));
+		a[0][i] = static_cast<double>(static_cast<int>(sin(tau * static_cast<double>(i))));
+		a[1][i] = static_cast<double>(static_cast<int>(sin(tau * static_cast<double>(i + 1))));
 	}
 
     // First part of output, for original values
@@ -91,6 +91,7 @@ void dgfem() {
 	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
         for (int count = 0; count < (1.0 / tStep); count++) {
+			// cout << a[0][6] << "\n";
             forwardEuler(a, aprime, tStep);
             for (int i = 0; i < K; i++) {
 		        // Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
