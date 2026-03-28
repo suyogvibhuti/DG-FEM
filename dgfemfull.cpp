@@ -64,12 +64,13 @@ void dgfem() {
 	for (int i = 0; i < K; i++) {
 		/** a[0][i] = sin(tau * static_cast<double>(i));
 		a[1][i] = sin(tau * static_cast<double>(i + 1)); **/
+		// Changed initial condition to square wave, doubled frequency
 		a[0][i] = -1;
 		a[1][i] = -1;
-		if (sin(tau * static_cast<double>(i)) > 0) {
+		if (sin(2 * tau * static_cast<double>(i)) > 0) {
 			a[0][i] = 1;
 		}
-		if (sin(tau * static_cast<double>(i + 1)) > 0) {
+		if (sin(2 * tau * static_cast<double>(i + 1)) > 0) {
 			a[1][i] = 1;
 		}
 	}
