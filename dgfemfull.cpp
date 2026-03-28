@@ -62,8 +62,16 @@ void dgfem() {
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
     double tau = 2 * M_PI / static_cast<double>(K);
 	for (int i = 0; i < K; i++) {
-		a[0][i] = sin(tau * static_cast<double>(i));
-		a[1][i] = sin(tau * static_cast<double>(i + 1));
+		/** a[0][i] = sin(tau * static_cast<double>(i));
+		a[1][i] = sin(tau * static_cast<double>(i + 1)); **/
+		a[0][i] = -1;
+		a[1][i] = -1;
+		if (sin(tau * static_cast<double>(i)) > 0) {
+			a[0][i] = 1;
+		}
+		if (sin(tau * static_cast<double>(i + 1)) > 0) {
+			a[1][i] = 1;
+		}
 	}
 
     // First part of output, for original values
@@ -83,9 +91,9 @@ void dgfem() {
 	}
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
-    double time = 10000;
+    double time = 1000;
     double tStep = 0.001;
-	int writeStep = 100;
+	int writeStep = 10;
 	int elapsedTimeCounter = 1;
 	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
