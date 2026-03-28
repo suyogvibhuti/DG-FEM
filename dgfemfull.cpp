@@ -76,55 +76,52 @@ void dgfem() {
 	double c = 3; // dummy value for fluid velocity, make dgfem parameter later
 	double aprimei[2];
 	for (int i = 0; i < K; i++) {
-		/** // Formulas derived from page in notebook, lots of matrix multiplication
-		aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
-		aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]); **/
+		// Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
 		numericalIntegration(a, c, i, aprimei);
 		cout << aprimei[0] << "," << aprimei[1] << "\n";
 		aprime[0][i] = aprimei[0];
 		aprime[1][i] = aprimei[1];
 	}
-	// Wraparound condition, so that values on right affect values on left
-	/** aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
-	aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]); **/
 
-	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t, make q list: q_i = a_0i(1 - x) + a_1i(x). Output q list?
+	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
     double time = 1000;
     double tStep = 0.01;
 	int writeStep = 10;
+	int elapsedTimeCounter = 1;
+	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
         for (int count = 0; count < (1.0 / tStep); count++) {
 			cout << a[0][6] << "\n";
             forwardEuler(a, aprime, tStep);
             for (int i = 0; i < K; i++) {
-		        // Formulas derived from page in notebook, lots of matrix multiplication
-		        /** aprime[0][i] = c * (-3 * a[0][i] - a[1][i] + 4 * a[1][i - 1]);
-		        aprime[1][i] = c * (3 * a[0][i] - a[1][i] - 2 * a[1][i - 1]); **/
+		        // Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
 				numericalIntegration(a, c, i, aprimei);
 				aprime[0][i] = aprimei[0];
 				aprime[1][i] = aprimei[1];
 	        }
-	        // Wraparound condition, so that values on right affect values on left
-	        /** aprime[0][0] = c * (-3 * a[0][0] - a[1][0] + 4 * a[1][K - 1]);
-	        aprime[1][0] = c * (3 * a[0][0] - a[1][0] - 2 * a[1][K - 1]); **/
 
-            /** // write results into file
-			for (int i = 0; i < K; i++) {
-                file << a[0][i] << "," << a[1][i] << "\n";
-            }
-            file << "\n"; **/
+			// write results into file
+			if (elapsedTimeCounter % (writeStep * static_cast<int>(1.0 / tStep)) == 0) {
+				for (int i = 0; i < K; i++) {
+                	file << a[0][i] << "," << a[1][i] << "\n";
+            	}
+            	file << "\n";
+				writeCount++;
+			}
+			elapsedTimeCounter++;
         }
 
-		// write results into file
+		/** // write results into file
 		if (secondsCount % writeStep == 0) {
 			for (int i = 0; i < K; i++) {
                 file << a[0][i] << "," << a[1][i] << "\n";
             }
             file << "\n";
-		}
+		} **/
     }
 
     file.close();
+	cout << writeCount;
 }
 
 void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
