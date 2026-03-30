@@ -7,9 +7,9 @@
 #include <cmath>
 using namespace std;
 const int K = 32;
-const int ORDER = 1; //so most things are 2 (basis functions)
+const int ORDER = 1; // so most things are 2 (basis functions)
 
-void dgfem();
+void dgfem(double fluidVelocity);
 void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep);
 void massMatrix(double (&mM)[2][2], bool inv);
 void stiffnessMatrix(double (&sM)[2][2]);
@@ -36,29 +36,20 @@ int main() {
 
 	// Boundary condition: q(0, t) = g(t), where g(t) is arbitrary function
 
-	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
-	/** double a[2][K];
-    double tau = 2 * M_PI / static_cast<double>(K);
-    // double length = 1; // determines length of system, how many periods basically
-	for (int i = 0; i < K; i++) {
-		a[0][i] = sin(tau * i);
-		a[1][i] = sin(tau * (i + 1));
-	} **/
-
-    dgfem();
+	// Running dgfem function, dummy value of 3 for fluid velocity
+    dgfem(3);
 	
 	// Exiting Program, Normal Operation Code
 	return 0;
 }
 
-void dgfem() {
+void dgfem(double fluidVelocity) {
 	double elementlist[K];
 	double q[K];
 
 	double aprime[2][K];
 	double a[2][K];
 
-	// Copied from main function for now!
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
     double tau = 2 * M_PI / static_cast<double>(K);
 	for (int i = 0; i < K; i++) {
@@ -77,12 +68,13 @@ void dgfem() {
 
     // First part of output, for original values
     ofstream file("results.txt");
+	file << K << "\n" << "\n"; // For graphing script, communicated number of elements to graph
     for (int i = 0; i < K; i++) {
         file << a[0][i] << "," << a[1][i] << "\n";
     }
     file << "\n";
 
-	double c = 3; // dummy value for fluid velocity, make dgfem parameter later
+	double c = fluidVelocity;
 	double aprimei[2];
 	for (int i = 0; i < K; i++) {
 		// Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
