@@ -87,7 +87,7 @@ void dgfem(double fluidVelocity, double length) {
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
     double time = 100;
-    double tStep = 0.001;
+    double tStep = 0.0001;
 	int writeStep = 1;
 	double deltaX = length / K;
 	double CFL = fluidVelocity * tStep / deltaX; // CFL = c * tStep as well, CFL <= 1 for model to work properly
