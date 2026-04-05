@@ -37,7 +37,7 @@ int main() {
 	// Boundary condition: q(0, t) = g(t), where g(t) is arbitrary function
 
 	// Running dgfem function, dummy value of 3 for fluid velocity
-    dgfem(3.0, 8.0);
+    dgfem(3.0, 3.0);
 	
 	// Exiting Program, Normal Operation Code
 	return 0;
@@ -87,7 +87,7 @@ void dgfem(double fluidVelocity, double length) {
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
     double time = 100;
-    double tStep = 0.01;
+    double tStep = 0.001;
 	int writeStep = 1;
 	double deltaX = length / K;
 	double CFL = fluidVelocity * tStep / deltaX; // CFL = c * tStep as well, CFL <= 1 for model to work properly
