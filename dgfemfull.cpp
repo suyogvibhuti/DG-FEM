@@ -53,17 +53,17 @@ void dgfem(double fluidVelocity) {
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
     double tau = 2 * M_PI / static_cast<double>(K);
 	for (int i = 0; i < K; i++) {
-		/** a[0][i] = sin(tau * static_cast<double>(i));
-		a[1][i] = sin(tau * static_cast<double>(i + 1)); **/
+		a[0][i] = sin(tau * static_cast<double>(i));
+		a[1][i] = sin(tau * static_cast<double>(i + 1));
 		// Changed initial condition to square wave, doubled frequency
-		a[0][i] = -1;
+		/** a[0][i] = -1;
 		a[1][i] = -1;
 		if (sin(2 * tau * static_cast<double>(i)) > 0) {
 			a[0][i] = 1;
 		}
 		if (sin(2 * tau * static_cast<double>(i + 1)) > 0) {
 			a[1][i] = 1;
-		}
+		} **/
 	}
 
     // First part of output, for original values
@@ -84,9 +84,11 @@ void dgfem(double fluidVelocity) {
 	}
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
-    double time = 1000;
-    double tStep = 0.001;
-	int writeStep = 10;
+    double time = 100;
+    double tStep = 0.01;
+	int writeStep = 1;
+	double deltaX = 6.28 / K;
+	double CFL = c * tStep / deltaX;
 	int elapsedTimeCounter = 1;
 	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
@@ -131,6 +133,15 @@ void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
             a[i][j] = a[i][j] + tStep * aprime[i][j];
         }
     }
+}
+
+void sspRK3(double (&a)[2][K], double aprime[2][K], double tStep) {
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < K; j++) {
+			double f1 = 0.5 * a[i][j] + 0.5 * (a[i][j] + tStep * aprime[i][j]);
+			double f2 = 0.5 * f1 + 0.5 * (f1 + tStep * aprime[i][j]);
+		}
+	}
 }
 
 void massMatrix(double (&mM)[2][2], bool inv) {
