@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cmath>
 using namespace std;
-const int K = 8;
+const int K = 32;
 const int ORDER = 1; // so most things are 2 (basis functions)
 
 void dgfem(double fluidVelocity, double length);
@@ -37,7 +37,7 @@ int main() {
 	// Boundary condition: q(0, t) = g(t), where g(t) is arbitrary function
 
 	// Running dgfem function, dummy value of 3 for fluid velocity
-    dgfem(3.0, 32.0);
+    dgfem(3.0, 8.0);
 	
 	// Exiting Program, Normal Operation Code
 	return 0;
