@@ -37,7 +37,7 @@ int main() {
 	// Boundary condition: q(0, t) = g(t), where g(t) is arbitrary function
 
 	// Running dgfem function, dummy value of 3 for fluid velocity
-    dgfem(3.0, 3.0);
+    dgfem(3.0, 32.0);
 	
 	// Exiting Program, Normal Operation Code
 	return 0;
@@ -53,17 +53,17 @@ void dgfem(double fluidVelocity, double length) {
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
     double tau = 2 * M_PI / static_cast<double>(K);
 	for (int i = 0; i < K; i++) {
-		a[0][i] = sin(tau * static_cast<double>(i));
-		a[1][i] = sin(tau * static_cast<double>(i + 1));
+		/** a[0][i] = sin(tau * static_cast<double>(i));
+		a[1][i] = sin(tau * static_cast<double>(i + 1)); **/
 		// Changed initial condition to square wave, doubled frequency
-		/** a[0][i] = -1;
+		a[0][i] = -1;
 		a[1][i] = -1;
 		if (sin(2 * tau * static_cast<double>(i)) > 0) {
 			a[0][i] = 1;
 		}
 		if (sin(2 * tau * static_cast<double>(i + 1)) > 0) {
 			a[1][i] = 1;
-		} **/
+		}
 	}
 
     // First part of output, for original values
