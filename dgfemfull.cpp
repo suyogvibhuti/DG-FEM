@@ -9,7 +9,7 @@ using namespace std;
 const int K = 8;
 const int ORDER = 1; // so most things are 2 (basis functions)
 
-void dgfem(double fluidVelocity);
+void dgfem(double fluidVelocity, double length);
 void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep);
 void massMatrix(double (&mM)[2][2], bool inv);
 void stiffnessMatrix(double (&sM)[2][2]);
@@ -37,13 +37,13 @@ int main() {
 	// Boundary condition: q(0, t) = g(t), where g(t) is arbitrary function
 
 	// Running dgfem function, dummy value of 3 for fluid velocity
-    dgfem(3);
+    dgfem(3.0, 32.0);
 	
 	// Exiting Program, Normal Operation Code
 	return 0;
 }
 
-void dgfem(double fluidVelocity) {
+void dgfem(double fluidVelocity, double length) {
 	double elementlist[K];
 	double q[K];
 
@@ -74,7 +74,9 @@ void dgfem(double fluidVelocity) {
     }
     file << "\n";
 
-	double c = fluidVelocity;
+	double c = fluidVelocity * static_cast<double>(K) / length; // Every element has a length of "1" if taken literally, this enforces true length
+	// fluidVelocity is how fast the fluid is traveling in m/s, c is measured in elements/s, length/K is the length of an element
+	cout << c << "?\n";
 	double aprimei[2];
 	for (int i = 0; i < K; i++) {
 		// Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
@@ -87,8 +89,9 @@ void dgfem(double fluidVelocity) {
     double time = 100;
     double tStep = 0.01;
 	int writeStep = 1;
-	double deltaX = 6.28 / K;
-	double CFL = c * tStep / deltaX;
+	double deltaX = length / K;
+	double CFL = fluidVelocity * tStep / deltaX; // CFL = c * tStep as well, CFL <= 1 for model to work properly
+	cout << CFL << "\n";
 	int elapsedTimeCounter = 1;
 	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
