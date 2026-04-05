@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cmath>
 using namespace std;
-const int K = 32;
+const int K = 8;
 const int ORDER = 1; // so most things are 2 (basis functions)
 
 void dgfem(double fluidVelocity);
