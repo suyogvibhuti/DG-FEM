@@ -11,6 +11,7 @@ const int ORDER = 1; // so most things are 2 (basis functions)
 
 void dgfem(double fluidVelocity, double length);
 void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep);
+void sspRK3(double (&a)[2][K], double aprime[2][K], double tStep);
 void massMatrix(double (&mM)[2][2], bool inv);
 void stiffnessMatrix(double (&sM)[2][2]);
 void fluxTerm(double (&fT)[2], double c, double a1, double a2);
@@ -97,7 +98,8 @@ void dgfem(double fluidVelocity, double length) {
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
         for (int count = 0; count < (1.0 / tStep); count++) {
 			// cout << a[0][6] << "\n";
-            forwardEuler(a, aprime, tStep);
+            // forwardEuler(a, aprime, tStep);
+			sspRK3(a, aprime, tStep);
             for (int i = 0; i < K; i++) {
 		        // Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
 				numericalIntegration(a, c, i, aprimei);
@@ -141,8 +143,9 @@ void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
 void sspRK3(double (&a)[2][K], double aprime[2][K], double tStep) {
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < K; j++) {
-			double f1 = 0.5 * a[i][j] + 0.5 * (a[i][j] + tStep * aprime[i][j]);
-			double f2 = 0.5 * f1 + 0.5 * (f1 + tStep * aprime[i][j]);
+			double f1 = a[i][j] + tStep * aprime[i][j];
+			double f2 = 0.75 * a[i][j] + 0.25 * (f1 + (tStep * aprime[i][j]));
+			a[i][j] = (1.0 / 3.0) * a[i][j] + (2.0 / 3.0) * (f2 + (tStep * aprime[i][j]));
 		}
 	}
 }
