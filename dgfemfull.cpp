@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cmath>
 using namespace std;
-const int K = 32;
+const int K = 64;
 const int ORDER = 1; // so most things are 2 (basis functions)
 
 void dgfem(double fluidVelocity, double length);
@@ -87,7 +87,7 @@ void dgfem(double fluidVelocity, double length) {
 
 	// To-Do: Develop ODE integrator (forward euler or RK4), apply to aprime values until desired time t
     double time = 100;
-    double tStep = 0.0001;
+    double tStep = 0.00005;
 	int writeStep = 1;
 	double deltaX = length / K;
 	double CFL = fluidVelocity * tStep / deltaX; // CFL = c * tStep as well, CFL <= 1 for model to work properly
