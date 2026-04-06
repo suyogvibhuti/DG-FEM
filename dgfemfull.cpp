@@ -77,7 +77,7 @@ void dgfem(double fluidVelocity, double length) {
 
 	double c = fluidVelocity * static_cast<double>(K) / length; // Every element has a length of "1" if taken literally, this enforces true length
 	// fluidVelocity is how fast the fluid is traveling in m/s, c is measured in elements/s, length/K is the length of an element
-	cout << c << "?\n";
+	cout << c << " is element velocity\n";
 	double aprimei[2];
 	for (int i = 0; i < K; i++) {
 		// Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
@@ -92,14 +92,14 @@ void dgfem(double fluidVelocity, double length) {
 	int writeStep = 1;
 	double deltaX = length / K;
 	double CFL = fluidVelocity * tStep / deltaX; // CFL = c * tStep as well, CFL <= 1 for model to work properly
-	cout << CFL << "\n";
+	cout << CFL << " is CFL\n";
 	int elapsedTimeCounter = 1;
 	int writeCount = 1;
     for (int secondsCount = 0; secondsCount < time; secondsCount++) {
         for (int count = 0; count < (1.0 / tStep); count++) {
 			// cout << a[0][6] << "\n";
-            // forwardEuler(a, aprime, tStep);
-			sspRK3(a, aprime, tStep);
+            forwardEuler(a, aprime, tStep);
+			// sspRK3(a, aprime, tStep);
             for (int i = 0; i < K; i++) {
 		        // Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
 				numericalIntegration(a, c, i, aprimei);
@@ -141,6 +141,8 @@ void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
 }
 
 void sspRK3(double (&a)[2][K], double aprime[2][K], double tStep) {
+	// Basically identical to forward euler for order of 1, since it just repeats using aprime
+	// Probably needs numerical integration updates each step of the way
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < K; j++) {
 			double f1 = a[i][j] + tStep * aprime[i][j];
