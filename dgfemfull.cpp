@@ -10,13 +10,13 @@ const int K = 64;
 const int ORDER = 1; // so most things are 2 (basis functions)
 
 void dgfem(double fluidVelocity, double length);
-void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep);
-void sspRK3(double (&a)[2][K], double aprime[2][K], double tStep);
+void forwardEuler(double (&a)[2][K + 1], double aprime[2][K], double tStep);
+void sspRK3(double (&a)[2][K + 1], double aprime[2][K], double tStep);
 void massMatrix(double (&mM)[2][2], bool inv);
 void stiffnessMatrix(double (&sM)[2][2]);
 void fluxTerm(double (&fT)[2], double c, double a1, double a2);
 void matrixColMult(double (&matrix2D)[2][2], double (&matrix1D)[2], double (&resultMatrix)[2]);
-void numericalIntegration(double a[2][K], double c, int i, double (&resultMatrix)[2]);
+void numericalIntegration(double a[2][K + 1], double c, int i, double (&resultMatrix)[2]);
 
 int main() {
 	// differential cell dx by dy, possesses dq/dt, flux on each side fx(q) for left and fx'(q) for right
@@ -49,7 +49,7 @@ void dgfem(double fluidVelocity, double length) {
 	double q[K];
 
 	double aprime[2][K];
-	double a[2][K];
+	double a[2][K + 1]; // Trying to create dummy values on either side so that direction of upwind flux is irrelevant
 
 	// Initial condition along sine wave, doing it this way is flawed since the lines between a points aren't really meant to be continuous, meant to be average of analytical solution
     double tau = 2 * M_PI / static_cast<double>(K);
@@ -57,21 +57,25 @@ void dgfem(double fluidVelocity, double length) {
 		/** a[0][i] = sin(tau * static_cast<double>(i));
 		a[1][i] = sin(tau * static_cast<double>(i + 1)); **/
 		// Changed initial condition to square wave, doubled frequency
-		a[0][i] = -1;
 		a[1][i] = -1;
+		a[0][i + 1] = -1;
 		if (sin(2 * tau * static_cast<double>(i)) > 0) {
-			a[0][i] = 1;
-		}
-		if (sin(2 * tau * static_cast<double>(i + 1)) > 0) {
 			a[1][i] = 1;
 		}
+		if (sin(2 * tau * static_cast<double>(i + 1)) > 0) {
+			a[0][i + 1] = 1;
+		}
 	}
+
+	// Creating copy values on either side
+	a[0][0] = a[0][K];
+	a[1][K] = a[1][0];
 
     // First part of output, for original values
     ofstream file("results.txt");
 	file << K << "\n" << "\n"; // For graphing script, communicated number of elements to graph
     for (int i = 0; i < K; i++) {
-        file << a[0][i] << "," << a[1][i] << "\n";
+        file << a[1][i] << "," << a[0][i + 1] << "\n";
     }
     file << "\n";
 
@@ -100,6 +104,11 @@ void dgfem(double fluidVelocity, double length) {
 			// cout << a[0][6] << "\n";
             forwardEuler(a, aprime, tStep);
 			// sspRK3(a, aprime, tStep);
+
+			// reset dummy values on ends of a
+			a[0][0] = a[0][K];
+			a[1][K] = a[1][0];
+
             for (int i = 0; i < K; i++) {
 		        // Using numerical integrator function for formula aprime = invM[cKa - f]. Includes wraparound condition.
 				numericalIntegration(a, c, i, aprimei);
@@ -110,11 +119,11 @@ void dgfem(double fluidVelocity, double length) {
 			// write results into file
 			if (elapsedTimeCounter % (writeStep * static_cast<int>(1.0 / tStep)) == 0) {
 				for (int i = 0; i < K; i++) {
-                	file << a[0][i] << "," << a[1][i] << "\n";
+                	file << a[1][i] << "," << a[0][i + 1] << "\n";
             	}
             	file << "\n";
 				writeCount++;
-				cout << a[0][6] << "\n";
+				cout << a[1][6] << "\n";
 			}
 			elapsedTimeCounter++;
         }
@@ -132,22 +141,24 @@ void dgfem(double fluidVelocity, double length) {
 	cout << writeCount;
 }
 
-void forwardEuler(double (&a)[2][K], double aprime[2][K], double tStep) {
+void forwardEuler(double (&a)[2][K + 1], double aprime[2][K], double tStep) {
     for (int i = 0; i < 2; i++) {
+		int shifted_i = 1 - i; // in order to ensure aprime properly maps onto a
         for (int j = 0; j < K; j++) {
-            a[i][j] = a[i][j] + tStep * aprime[i][j];
+            a[shifted_i][j + i] = a[shifted_i][j + i] + tStep * aprime[i][j];
         }
     }
 }
 
-void sspRK3(double (&a)[2][K], double aprime[2][K], double tStep) {
+void sspRK3(double (&a)[2][K + 1], double aprime[2][K], double tStep) {
 	// Basically identical to forward euler for order of 1, since it just repeats using aprime
 	// Probably needs numerical integration updates each step of the way
 	for (int i = 0; i < 2; i++) {
+		int shifted_i = 1 - i; // in order to ensure aprime properly maps onto a
 		for (int j = 0; j < K; j++) {
-			double f1 = a[i][j] + tStep * aprime[i][j];
-			double f2 = 0.75 * a[i][j] + 0.25 * (f1 + (tStep * aprime[i][j]));
-			a[i][j] = (1.0 / 3.0) * a[i][j] + (2.0 / 3.0) * (f2 + (tStep * aprime[i][j]));
+			double f1 = a[shifted_i][j + i] + tStep * aprime[i][j];
+			double f2 = 0.75 * a[shifted_i][j + i] + 0.25 * (f1 + (tStep * aprime[i][j]));
+			a[shifted_i][j + i] = (1.0 / 3.0) * a[shifted_i][j + i] + (2.0 / 3.0) * (f2 + (tStep * aprime[i][j]));
 		}
 	}
 }
@@ -189,20 +200,16 @@ void matrixColMult(double (&matrix2D)[2][2], double (&matrix1D)[2], double (&res
 	resultMatrix[1] = matrix1D[0] * matrix2D[1][0] + matrix1D[1] * matrix2D[1][1];
 }
 
-void numericalIntegration(double a[2][K], double c, int i, double (&resultMatrix)[2]) {
+void numericalIntegration(double a[2][K + 1], double c, int i, double (&resultMatrix)[2]) {
 	// aprime = invM[cKa - f], K refers to stiffness matrix sM
 	double sM[2][2];
 	stiffnessMatrix(sM);
-	double acol[2] = {a[0][i], a[1][i]};
+	double acol[2] = {a[1][i], a[0][i + 1]};
 	double Ka[2];
 	matrixColMult(sM, acol, Ka);
 	double f[2];
-	// For wraparound condition, so that values on right affect values on left
-	if (i > 0) {
-		fluxTerm(f, c, a[1][i - 1], a[1][i]);
-	} else {
-		fluxTerm(f, c, a[1][K - 1], a[1][i]);
-	}
+	// No need for wraparound condition anymore
+	fluxTerm(f, c, a[0][i], a[0][i + 1]);
 	double term2[2] = {c * Ka[0] - f[0], c * Ka[1] - f[1]};
 	double invM[2][2];
 	massMatrix(invM, true);
