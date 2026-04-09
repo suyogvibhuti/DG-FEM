@@ -37,8 +37,8 @@ int main() {
 
 	// Boundary condition: q(0, t) = g(t), where g(t) is arbitrary function
 
-	// Running dgfem function, dummy value of 3 for fluid velocity
-    dgfem(3.0, 32.0);
+	// Running dgfem function, dummy value for fluid velocity
+    dgfem(2.0, 32.0);
 	
 	// Exiting Program, Normal Operation Code
 	return 0;
