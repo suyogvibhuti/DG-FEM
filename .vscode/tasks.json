@@ -9,7 +9,8 @@
                 "/EHsc",
                 "/nologo",
                 "/Fe${fileDirname}\\${fileBasenameNoExtension}.exe",
-                "${file}"
+                "${file}",
+                "-IC:/Users/neelu/OneDrive/Documents/GitHub/DG-FEM/libs/eigen-5.0.0"
             ],
             "options": {
                 "cwd": "${fileDirname}"

@@ -1,0 +1,193 @@
+//DG-FEM Model: Suyog Vibhuti
+//Uniform Advection Problem: dq/dt + c * dq/dx = 0, c is fluid velocity (constant)
+#define _USE_MATH_DEFINES
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <cmath>
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
+using namespace std;
+using namespace Eigen;
+const int K = 64;
+const int ORDER = 2; // Moving to arbitrary order, generalizing matrices and procedures
+
+void dgfem(double fluidVelocity, double length);
+void startup();
+double* JacobiGQ(int alpha, int beta, int N);
+double* JacobiGL(int alpha, int beta, int N);
+double* JacobiP(double* x, int x_length, int alpha, int beta, int N);
+double** Vandermonde1D(int N, double* r, int r_length);
+
+int main() {
+    // For arbitrary order need to use lagrange interpolation on nodal system (at node pts approximation equals analytical solution)
+    // Runge's phenomenon for equally spaced nodes, use legendre interpolation points instead for more points at edges
+    // Legendre interpolation: take a set of legendre polynomials of given order, roots of polynomials form set of interpolation pts
+    // For HO matrices (mass, stiffness), in order to integrate arbitrary functions use quadrature (creating a new interpolation of function using lagrange interpolation)
+    // Try hermite interpolation quadrature (2M - 1 order), doesnt need value for first deriv. w/ legendre-lagrange bases
+    // hermite interpolation: integral of f ~ sum from 0 to M of f(xi)*wi
+
+    // Running dgfem function, dummy value for fluid velocity
+    startup();
+    dgfem(2.0, 32.0);
+    JacobiGL(0, 0, 4);
+
+    // Exiting program, normal operation code
+    return 0;
+}
+
+void dgfem(double fluidVelocity, double length) {
+    // designed to solve for reference element, then to apply to elements in region using jacobians
+    const int Nv = K + 1; // number of vertices
+    double vx[Nv]; // row vector, each value represents endpoint of element on region
+    int EToV[K][2]; // each row represents element: contains two values from vx for left and right points
+    
+    // affine mapping (for element k): x(r) = xl + ((1 + r)/2) * h, h = (xr - xl)
+        // r is between -1 and 1
+    
+    int FToV[2 * K][Nv];
+    int FToV_T[Nv][2 * K]; // Transposed FToV
+    for (int i = 0; i < K; i++) {
+        FToV[2 * i][EToV[i][0] - 1], FToV_T[EToV[i][0] - 1][2 * i] = 1;
+        FToV[2 * i + 1][EToV[i][1] - 1], FToV_T[EToV[i][1] - 1][2 * i + 1] = 1;
+    }
+
+    // multiplying FToV by FToV_T and subtracting the identity matrix
+    int FToF[2 * K][2 * K];
+    for (int i = 0; i < 2 * K; i++) {
+        for (int j = 0; j < 2 * K; j++) {
+            for (int k = 0; k < Nv; k++) {
+                FToF[i][j] += FToV[i][k] * FToV_T[k][j];
+            }
+        }
+        FToF[i][i] = 0; // effectively works as identity matrix subtraction operation 
+    }
+
+    cout << "hello!";
+}
+
+void startup() {
+    // Setup script to define operators, grid, and connection faces
+
+    // Constants
+    int N = 4;
+    int numFaces = 2;
+
+    // Basic LGL grid for reference element r
+    double* r = new double(N + 1);
+    r = JacobiGL(0, 0, N);
+
+    // Reference element matrices
+    double** V = Vandermonde1D(N, r, N + 1);
+
+}
+
+double* JacobiGQ(int alpha, int beta, int N) {
+    if (N == 0) {
+        return {0};
+    }
+    int* h1 = new int[N + 1];
+    for (int n = 0; n < N + 1; n++) {
+        h1[n] = 2 * n + alpha + beta;
+    }
+
+    double** J = new double*[N + 1];
+    for (int i = 0; i < N + 1; i++) {
+        J[i] = new double[N + 1];
+        J[i][i] = -static_cast<double>(alpha * alpha - beta * beta) / static_cast<double>((h1[i] + 2) * h1[i]); // For a=b=0, equals 0. for gauss-lobatto, since a=b=1, doesn't equal 0.
+    }
+    for (int i = 1; i < N + 1; i++) {
+        J[i - 1][i] = (2.0 / static_cast<double>(h1[i])) * sqrt(static_cast<double>(i * (i + alpha + beta) * (i + alpha) * (i + beta)) / static_cast<double>((h1[i] - 1) * (h1[i] + 1)));
+        J[i][i - 1] = (2.0 / static_cast<double>(h1[i])) * sqrt(static_cast<double>(i * (i + alpha + beta) * (i + alpha) * (i + beta)) / static_cast<double>((h1[i] - 1) * (h1[i] + 1)));
+    }
+    if (alpha + beta == 0) {
+        J[0][0] = 0;
+    }
+
+    MatrixXd mat(N + 1, N + 1);
+    for (int i = 0; i < N + 1; i++) {
+        for (int j = 0; j < N + 1; j++) {
+            cout << J[i][j] << " ";
+            mat(i, j) = J[i][j];
+        }
+        cout << "\n";
+    }
+    cout << "\n";
+    cout << mat;
+    EigenSolver<MatrixXd> solver(mat);
+    double* x = new double[N + 1];
+    VectorXcd J_eigenvalues = solver.eigenvalues();
+    for (int i = 0; i < N + 1; i++) {
+        x[i] = J_eigenvalues(i).real();
+    }
+    cout << solver.eigenvalues().real();
+    return x;
+}
+
+double* JacobiGL(int alpha, int beta, int N) {
+    double* x = new double[N + 1];
+    x[0] = -1.0;
+    x[N] = 1.0;
+    if (N > 1) {
+        double* xint = new double[N - 1];
+        xint = JacobiGQ(alpha + 1, beta + 1, N - 2);
+        for (int i = 1; i < N; i++) {
+            x[i] = xint[i - 1];
+        }
+    }
+    return x;
+}
+
+double* JacobiP(double* x, int x_length, int alpha, int beta, int N) {
+    double** PL = new double*[N + 1];
+    for (int i = 0; i < N + 1; i++) {
+        PL[i] = new double[x_length];
+    }
+
+    double gamma0 = pow(2.0, alpha + beta + 1) * tgamma(alpha + 1) * tgamma(beta + 1) / tgamma(alpha + beta + 2);
+    double PL_0 = 1.0 / sqrt(gamma0);
+    for (int i = 0; i < x_length; i++) {
+        PL[0][i] = PL_0;
+    }
+    if (N == 0) {
+        return PL[0];
+    }
+
+    double gamma1 = gamma0 * static_cast<double>((alpha + 1) * (beta + 1)) / static_cast<double>((alpha + beta + 3));
+    for (int i = 0; i < x_length; i++) {
+        PL[1][i] = (static_cast<double>(alpha + beta + 2) * x[i] + static_cast<double>(alpha- beta)) / (2.0 * sqrt(gamma1));
+    }
+    if (N == 1) {
+        return PL[1];
+    }
+
+    double aold = 2.0 * sqrt(static_cast<double>((alpha + 1) * (beta + 1)) / static_cast<double>(alpha + beta + 3)) / static_cast<double>(2 + alpha + beta); // aold = a1
+    for (int i = 0; i < N - 1; i++) {
+        int h1 = 2 * i + alpha + beta;
+        double anew = 2.0 * sqrt(static_cast<double>((i + 1) * (i + 1 + alpha + beta) * (i + 1 + alpha) * (i + 1 + beta)) / static_cast<double>((h1 + 1) * (h1 + 3))) / static_cast<double>(h1 + 2);
+        double bnew = -static_cast<double>(alpha * alpha - beta * beta) / static_cast<double>(h1 * (h1 + 2));
+        for (int j = 0; j < x_length; j++) {
+            PL[i + 2][j] = (-aold * PL[i][j] + (x[j] - bnew) * PL[i + 1][j]) / anew;
+        }
+        aold = anew;
+    }
+
+    return PL[N];
+}
+
+double** Vandermonde1D(int N, double* r, int r_length) {
+    double** V1D = new double*[r_length];
+    for (int i = 0; i < r_length; i++) {
+        V1D[i] = new double[N + 1];
+    }
+
+    double* V1Dcol = new double[3];
+    for (int j = 0; j < N + 1; j++) {
+        V1Dcol = JacobiP(r, r_length, 0, 0, j);
+        for (int i = 0; i < r_length; i++) {
+            V1D[i][j] = V1Dcol[i];
+        }
+    }
+
+    return V1D;
+}
