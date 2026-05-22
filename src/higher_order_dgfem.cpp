@@ -14,10 +14,13 @@ const int ORDER = 2; // Moving to arbitrary order, generalizing matrices and pro
 
 void dgfem(double fluidVelocity, double length);
 void startup();
-double* JacobiGQ(int alpha, int beta, int N);
-double* JacobiGL(int alpha, int beta, int N);
-double* JacobiP(double* x, int x_length, int alpha, int beta, int N);
-double** Vandermonde1D(int N, double* r, int r_length);
+VectorXd JacobiGQ(int alpha, int beta, int N);
+VectorXd JacobiGL(int alpha, int beta, int N);
+VectorXd JacobiP(VectorXd x, int x_length, int alpha, int beta, int N);
+MatrixXd Vandermonde1D(int N, VectorXd r, int r_length);
+VectorXd GradJacobiP(VectorXd r, int r_length, int alpha, int beta, int N);
+MatrixXd GradVandermonde1D(VectorXd r, int r_length, int N);
+MatrixXd Dmatrix1D(VectorXd r, int r_length, int N, MatrixXd Vandermonde);
 
 int main() {
     // For arbitrary order need to use lagrange interpolation on nodal system (at node pts approximation equals analytical solution)
@@ -30,7 +33,6 @@ int main() {
     // Running dgfem function, dummy value for fluid velocity
     startup();
     dgfem(2.0, 32.0);
-    JacobiGL(0, 0, 4);
 
     // Exiting program, normal operation code
     return 0;
@@ -63,28 +65,35 @@ void dgfem(double fluidVelocity, double length) {
         FToF[i][i] = 0; // effectively works as identity matrix subtraction operation 
     }
 
-    cout << "hello!";
+    cout << "hello!" << "\n";
 }
 
 void startup() {
     // Setup script to define operators, grid, and connection faces
 
     // Constants
-    int N = 4;
+    int N = 16;
     int numFaces = 2;
 
     // Basic LGL grid for reference element r
-    double* r = new double(N + 1);
+    VectorXd r(N + 1);
     r = JacobiGL(0, 0, N);
+    cout << "<";
+    for (int i = 0; i < N; i++) {
+        cout << r(i) << ", ";
+    }
+    cout << r(N) << ">\n";
 
     // Reference element matrices
-    double** V = Vandermonde1D(N, r, N + 1);
-
+    MatrixXd V(N + 1, N);
+    V = Vandermonde1D(N, r, N + 1);
 }
 
-double* JacobiGQ(int alpha, int beta, int N) {
+VectorXd JacobiGQ(int alpha, int beta, int N) {
     if (N == 0) {
-        return {0};
+        VectorXd x(1);
+        x(0) = static_cast<double>(alpha - beta) / static_cast<double>(alpha + beta + 2);
+        return x;
     }
     int* h1 = new int[N + 1];
     for (int n = 0; n < N + 1; n++) {
@@ -94,7 +103,7 @@ double* JacobiGQ(int alpha, int beta, int N) {
     double** J = new double*[N + 1];
     for (int i = 0; i < N + 1; i++) {
         J[i] = new double[N + 1];
-        J[i][i] = -static_cast<double>(alpha * alpha - beta * beta) / static_cast<double>((h1[i] + 2) * h1[i]); // For a=b=0, equals 0. for gauss-lobatto, since a=b=1, doesn't equal 0.
+        J[i][i] = -static_cast<double>(alpha * alpha - beta * beta) / ((h1[i] + 2) * h1[i]); // For a=b=0, equals 0. for gauss-lobatto, since a=b=1, doesn't equal 0.
     }
     for (int i = 1; i < N + 1; i++) {
         J[i - 1][i] = (2.0 / static_cast<double>(h1[i])) * sqrt(static_cast<double>(i * (i + alpha + beta) * (i + alpha) * (i + beta)) / static_cast<double>((h1[i] - 1) * (h1[i] + 1)));
@@ -107,87 +116,142 @@ double* JacobiGQ(int alpha, int beta, int N) {
     MatrixXd mat(N + 1, N + 1);
     for (int i = 0; i < N + 1; i++) {
         for (int j = 0; j < N + 1; j++) {
-            cout << J[i][j] << " ";
+            // cout << J[i][j] << " ";
             mat(i, j) = J[i][j];
         }
-        cout << "\n";
+        // cout << "\n";
     }
-    cout << "\n";
-    cout << mat;
+    // cout << "\n";
+    // cout << mat;
     EigenSolver<MatrixXd> solver(mat);
-    double* x = new double[N + 1];
+    VectorXd x(N + 1);
     VectorXcd J_eigenvalues = solver.eigenvalues();
     for (int i = 0; i < N + 1; i++) {
-        x[i] = J_eigenvalues(i).real();
+        x(i) = J_eigenvalues(i).real();
     }
-    cout << solver.eigenvalues().real();
+    cout << solver.eigenvalues().real() << "\n";
     return x;
 }
 
-double* JacobiGL(int alpha, int beta, int N) {
-    double* x = new double[N + 1];
-    x[0] = -1.0;
-    x[N] = 1.0;
+VectorXd JacobiGL(int alpha, int beta, int N) {
+    VectorXd x(N + 1);
+    x(0) = -1.0;
+    x(N) = 1.0;
     if (N > 1) {
-        double* xint = new double[N - 1];
+        VectorXd xint(N - 1);
         xint = JacobiGQ(alpha + 1, beta + 1, N - 2);
         for (int i = 1; i < N; i++) {
-            x[i] = xint[i - 1];
+            x(i) = xint(i - 1);
         }
     }
     return x;
 }
 
-double* JacobiP(double* x, int x_length, int alpha, int beta, int N) {
-    double** PL = new double*[N + 1];
-    for (int i = 0; i < N + 1; i++) {
-        PL[i] = new double[x_length];
-    }
+VectorXd JacobiP(VectorXd x, int x_length, int alpha, int beta, int N) {
+    MatrixXd PL(N + 1, x_length);
 
     double gamma0 = pow(2.0, alpha + beta + 1) * tgamma(alpha + 1) * tgamma(beta + 1) / tgamma(alpha + beta + 2);
     double PL_0 = 1.0 / sqrt(gamma0);
     for (int i = 0; i < x_length; i++) {
-        PL[0][i] = PL_0;
+        PL(0, i) = PL_0;
     }
     if (N == 0) {
-        return PL[0];
+        VectorXd PL_row0(x_length);
+        for (int i = 0; i < x_length; i++) {
+            PL_row0(i) = PL(0, i);
+        }
+        return PL_row0;
     }
 
     double gamma1 = gamma0 * static_cast<double>((alpha + 1) * (beta + 1)) / static_cast<double>((alpha + beta + 3));
     for (int i = 0; i < x_length; i++) {
-        PL[1][i] = (static_cast<double>(alpha + beta + 2) * x[i] + static_cast<double>(alpha- beta)) / (2.0 * sqrt(gamma1));
+        PL(1, i) = (static_cast<double>(alpha + beta + 2) * x(i) + static_cast<double>(alpha- beta)) / (2.0 * sqrt(gamma1));
     }
     if (N == 1) {
-        return PL[1];
+        VectorXd PL_row1(x_length);
+        for (int i = 0; i < x_length; i++) {
+            PL_row1(i) = PL(1, i);
+        }
+        return PL_row1;
     }
 
-    double aold = 2.0 * sqrt(static_cast<double>((alpha + 1) * (beta + 1)) / static_cast<double>(alpha + beta + 3)) / static_cast<double>(2 + alpha + beta); // aold = a1
+    double aold = 2.0 * sqrt(static_cast<double>((alpha + 1) * (beta + 1)) / static_cast<double>(alpha + beta + 3)) / (2 + alpha + beta); // aold = a1
     for (int i = 0; i < N - 1; i++) {
         int h1 = 2 * i + alpha + beta;
-        double anew = 2.0 * sqrt(static_cast<double>((i + 1) * (i + 1 + alpha + beta) * (i + 1 + alpha) * (i + 1 + beta)) / static_cast<double>((h1 + 1) * (h1 + 3))) / static_cast<double>(h1 + 2);
-        double bnew = -static_cast<double>(alpha * alpha - beta * beta) / static_cast<double>(h1 * (h1 + 2));
+        double anew = 2.0 * sqrt(static_cast<double>((i + 1) * (i + 1 + alpha + beta) * (i + 1 + alpha) * (i + 1 + beta)) / static_cast<double>((h1 + 1) * (h1 + 3))) / (h1 + 2);
+        double bnew = -static_cast<double>(alpha * alpha - beta * beta) / (h1 * (h1 + 2));
         for (int j = 0; j < x_length; j++) {
-            PL[i + 2][j] = (-aold * PL[i][j] + (x[j] - bnew) * PL[i + 1][j]) / anew;
+            PL(i + 2, j) = (-aold * PL(i, j) + (x(j) - bnew) * PL(i + 1, j)) / anew;
         }
         aold = anew;
     }
 
-    return PL[N];
+    VectorXd PL_rowN(x_length);
+    for (int i = 0; i < x_length; i++) {
+        PL_rowN(i) = PL(N, i);
+    }
+    return PL_rowN;
 }
 
-double** Vandermonde1D(int N, double* r, int r_length) {
-    double** V1D = new double*[r_length];
-    for (int i = 0; i < r_length; i++) {
-        V1D[i] = new double[N + 1];
-    }
+MatrixXd Vandermonde1D(int N, VectorXd r, int r_length) {
+    MatrixXd V1D(r_length, N + 1);
 
-    double* V1Dcol = new double[3];
+    VectorXd V1Dcol(r_length);
     for (int j = 0; j < N + 1; j++) {
         V1Dcol = JacobiP(r, r_length, 0, 0, j);
         for (int i = 0; i < r_length; i++) {
-            V1D[i][j] = V1Dcol[i];
+            V1D(i, j) = V1Dcol(i);
         }
     }
 
     return V1D;
+}
+
+VectorXd GradJacobiP(VectorXd r, int r_length, int alpha, int beta, int N) {
+    VectorXd deltaP(r_length);
+    if (!(N == 0)) {
+        deltaP = JacobiP(r, r_length, alpha + 1, beta + 1, N - 1);
+        for (int i = 0; i < r_length; i++) {
+            deltaP(i) = deltaP(i) * sqrt(N * (N + alpha + beta + 1));
+        }
+    }
+
+    return deltaP;
+}
+
+MatrixXd GradVandermonde1D(VectorXd r, int r_length, int N) {
+    MatrixXd dVr(r_length, N + 1);
+
+    for (int i = 0; i < N + 1; i++) {
+        VectorXd dVrCol(r_length);
+        dVrCol = GradJacobiP(r, r_length, 0, 0, i);
+        for (int j = 0; j < r_length; j++) {
+            dVr(j, i) = dVrCol(j);
+        }
+    }
+
+    return dVr;
+}
+
+MatrixXd Dmatrix1D(VectorXd r, int r_length, int N, MatrixXd Vandermonde) {
+    MatrixXd Vr(r_length, N + 1);
+    Vr = GradVandermonde1D(r, r_length, N);
+
+    MatrixXd Dmatrix(r_length, r_length);
+    Dmatrix = Vr * Vandermonde.inverse();
+
+    return Dmatrix;
+}
+
+MatrixXd Lift1D(int r_length, int N, int Nfaces, int Nfp, MatrixXd Vandermonde) {
+    MatrixXd EMat(N + 1, Nfaces * Nfp);
+    EMat(0, 0) = 1.0;
+    EMat(N, 1) = 1.0;
+
+    MatrixXd result_matrix(N + 1, Nfaces * Nfp);
+    result_matrix = Vandermonde.transpose() * EMat;
+    MatrixXd result_matrix_2(r_length, Nfaces * Nfp);
+    result_matrix_2 = Vandermonde * result_matrix;
+
+    return result_matrix_2;
 }
