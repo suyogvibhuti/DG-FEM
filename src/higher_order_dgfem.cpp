@@ -1,5 +1,5 @@
-//DG-FEM Model: Suyog Vibhuti
-//Uniform Advection Problem: dq/dt + c * dq/dx = 0, c is fluid velocity (constant)
+// DG-FEM Model: Suyog Vibhuti
+// Uniform Advection Problem: dq/dt + c * dq/dx = 0, c is fluid velocity (constant)
 #define _USE_MATH_DEFINES
 #include <iostream>
 #include <fstream>
@@ -13,7 +13,7 @@ const int K = 64;
 const int ORDER = 2; // Moving to arbitrary order, generalizing matrices and procedures
 
 void dgfem(double fluidVelocity, double length);
-void startup();
+void startup(VectorXd VX, MatrixXd EToV, int K);
 VectorXd JacobiGQ(int alpha, int beta, int N);
 VectorXd JacobiGL(int alpha, int beta, int N);
 VectorXd JacobiP(VectorXd x, int x_length, int alpha, int beta, int N);
@@ -21,6 +21,8 @@ MatrixXd Vandermonde1D(int N, VectorXd r, int r_length);
 VectorXd GradJacobiP(VectorXd r, int r_length, int alpha, int beta, int N);
 MatrixXd GradVandermonde1D(VectorXd r, int r_length, int N);
 MatrixXd Dmatrix1D(VectorXd r, int r_length, int N, MatrixXd Vandermonde);
+MatrixXd Lift1D(int r_length, int N, int Nfaces, int Nfp, MatrixXd Vandermonde);
+MatrixXd Jacobian1D(VectorXd x, MatrixXd Dr, int r_length);
 
 int main() {
     // For arbitrary order need to use lagrange interpolation on nodal system (at node pts approximation equals analytical solution)
@@ -31,7 +33,10 @@ int main() {
     // hermite interpolation: integral of f ~ sum from 0 to M of f(xi)*wi
 
     // Running dgfem function, dummy value for fluid velocity
-    startup();
+    int K = 3;
+    VectorXd VX(K + 1);
+    MatrixXd EToV(K, 2);
+    startup(VX, EToV, K);
     dgfem(2.0, 32.0);
 
     // Exiting program, normal operation code
@@ -68,15 +73,17 @@ void dgfem(double fluidVelocity, double length) {
     cout << "hello!" << "\n";
 }
 
-void startup() {
+void startup(VectorXd VX, MatrixXd EToV, int K) {
     // Setup script to define operators, grid, and connection faces
 
     // Constants
     int N = 16;
     int numFaces = 2;
+    int Nfp = 1;
 
     // Basic LGL grid for reference element r
     VectorXd r(N + 1);
+    int r_length = N + 1;
     r = JacobiGL(0, 0, N);
     cout << "<";
     for (int i = 0; i < N; i++) {
@@ -86,7 +93,34 @@ void startup() {
 
     // Reference element matrices
     MatrixXd V(N + 1, N);
-    V = Vandermonde1D(N, r, N + 1);
+    V = Vandermonde1D(N, r, r_length);
+    MatrixXd invV(N, N + 1);
+    invV = V.inverse();
+
+    MatrixXd Dr(r_length, r_length);
+    Dr = Dmatrix1D(r, r_length, N, V);
+
+    // Surface integral terms
+    MatrixXd LIFT(r_length, numFaces * Nfp);
+    LIFT = Lift1D(r_length, N, numFaces, Nfp, V);
+
+    VectorXd va(K);
+    VectorXd vb(K);
+    va = EToV.col(0).array() - 1;
+    vb = EToV.col(1).array() - 1;
+    VectorXd x(N + 1);
+    x = VectorXd::Ones(N + 1) * VX(Eigen::placeholders::all, va);
+    VectorXd r_intermediary(r_length);
+    r_intermediary = r.array() + 1;
+    r_intermediary = 0.5 * r_intermediary * (VX(Eigen::placeholders::all, vb) - VX(Eigen::placeholders::all, va));
+    x = x.array() + r_intermediary.array();
+
+    VectorXd J(r_length);
+    J = Jacobian1D(x, Dr, r_length);
+    VectorXd rx(r_length);
+    for (int i = 0; i < r_length; i++) {
+        rx(i) = 1.0 / J(i);
+    }
 }
 
 VectorXd JacobiGQ(int alpha, int beta, int N) {
@@ -194,6 +228,7 @@ VectorXd JacobiP(VectorXd x, int x_length, int alpha, int beta, int N) {
 }
 
 MatrixXd Vandermonde1D(int N, VectorXd r, int r_length) {
+    // Sets up Vandermonde matrix, used to convert between nodal and modal formulations
     MatrixXd V1D(r_length, N + 1);
 
     VectorXd V1Dcol(r_length);
@@ -208,6 +243,7 @@ MatrixXd Vandermonde1D(int N, VectorXd r, int r_length) {
 }
 
 VectorXd GradJacobiP(VectorXd r, int r_length, int alpha, int beta, int N) {
+    // Finds derivative of jacobi polynomial based on identity
     VectorXd deltaP(r_length);
     if (!(N == 0)) {
         deltaP = JacobiP(r, r_length, alpha + 1, beta + 1, N - 1);
@@ -220,6 +256,7 @@ VectorXd GradJacobiP(VectorXd r, int r_length, int alpha, int beta, int N) {
 }
 
 MatrixXd GradVandermonde1D(VectorXd r, int r_length, int N) {
+    // Compiles Jacobi derivatives to create Vandermonde gradient
     MatrixXd dVr(r_length, N + 1);
 
     for (int i = 0; i < N + 1; i++) {
@@ -234,6 +271,7 @@ MatrixXd GradVandermonde1D(VectorXd r, int r_length, int N) {
 }
 
 MatrixXd Dmatrix1D(VectorXd r, int r_length, int N, MatrixXd Vandermonde) {
+    // Finds differentiation matrix for which M * D = S
     MatrixXd Vr(r_length, N + 1);
     Vr = GradVandermonde1D(r, r_length, N);
 
@@ -254,4 +292,14 @@ MatrixXd Lift1D(int r_length, int N, int Nfaces, int Nfp, MatrixXd Vandermonde) 
     result_matrix_2 = Vandermonde * result_matrix;
 
     return result_matrix_2;
+}
+
+MatrixXd Jacobian1D(VectorXd x, MatrixXd Dr, int r_length) {
+   // Used for affine mapping from x to r, rx calculation put in startup
+   
+   // Calculating Jacobian
+   VectorXd J(r_length);
+   J = Dr * x;
+
+   return J;
 }
