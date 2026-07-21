@@ -7,16 +7,16 @@
 #include <cmath>
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
+#include <Eigen/SparseCore>
 using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 5;
-const int N = 8;
+const int K = 8;
+const int N = 4; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
 const double node_tolerance = pow(10.0, -10.0);
-const int ORDER = 2; // Moving to arbitrary order, generalizing matrices and procedures
 
 // Global Variables
 VectorXd r(N + 1);
@@ -28,6 +28,19 @@ MatrixXd LIFT(r_length, numFaces * Nfp);
 MatrixXd x(N + 1, K);
 MatrixXd J(r_length, K);
 MatrixXd rx(r_length, K);
+MatrixXd nx(Nfp * numFaces, K);
+MatrixXd Fscale(2, K);
+int mapI;
+int mapO;
+int vmapI;
+int vmapO;
+// Dynamically resized matrices and vectors
+MatrixXi EToE;
+MatrixXi EToF;
+MatrixXi vmapM;
+MatrixXi vmapP;
+VectorXi mapB;
+VectorXi vmapB;
 
 // Low-storage Runge-Kutta coeffs
 VectorXd rk4a(5);
@@ -35,6 +48,8 @@ VectorXd rk4b(5);
 VectorXd rk4c(5);
 
 // void dgfem(double fluidVelocity, double length);
+void Connect1D(MatrixXd EToV_eigen, MatrixXi& EToE, MatrixXi& EToF);
+void BuildMaps1D(MatrixXi fmask, MatrixXi EToE, MatrixXi EToF, MatrixXi& vmapM, MatrixXi& vmapP, VectorXi& vmapB, VectorXi& mapB);
 void startup(VectorXd VX, MatrixXd EToV, int K);
 VectorXd JacobiGQ(int alpha, int beta, int N);
 VectorXd JacobiGL(int alpha, int beta, int N);
@@ -88,7 +103,11 @@ int main() {
 
     // Solve problem and print result
     double finalTime = 10;
+    cout << "starting u:\n";
+    cout << u << "\n\n";
+
     u = Advec1D(u, finalTime);
+    cout << "ending u:\n";
     cout << u;
 
     // Exiting program, normal operation code
@@ -125,11 +144,87 @@ int main() {
     cout << "hello!" << "\n";
 } */
 
-void Connect1D(MatrixXd EToV_eigen) {
+void Connect1D(MatrixXd EToV_eigen, MatrixXi& EToE, MatrixXi& EToF) {
     int numFaces = 2; // Since this is always 1D
     int totFaces = numFaces * K;
     const int Nv = K + 1;
-    int EToV[K][2]; // each row represents element: contains two values from vx for left and right points
+    EToE.resize(K, numFaces);
+    EToF.resize(K, numFaces);
+    /* VectorXi vn(numFaces); // list of face to vertex connections, length = numFaces = 2
+    for (int i = 0; i < numFaces; i++) {
+        vn(i) = i;
+    } */
+    
+    // Global face to node sparse array
+    SparseMatrix<int> SpFToV(totFaces, Nv);
+    SpFToV.reserve(2 * totFaces);
+    int sk = 0;
+    for (int k = 0; k < K; k++) {
+        for (int face = 0; face < numFaces; face++) {
+            SpFToV.coeffRef(sk, EToV_eigen(k, face)) = 1;
+            sk++;
+        }
+    }
+    
+    // Global face to face sparse array
+    SparseMatrix<int> SpFToF(totFaces, totFaces);
+    SpFToF = SpFToV * SpFToV.transpose();
+    for (int i = 0; i < totFaces; i++) {
+        SpFToF.coeffRef(i, i) -= 1; // equivalent to subtracting sparse identity matrix
+    }
+    // Pretty inefficient but this is my replacement for Matlab's "find" command
+    int faceConnLength = 0;
+    for (int i = 0; i < totFaces; i++) {
+        for (int j = 0; j < totFaces; j++) {
+            if (SpFToF.coeff(i, j) == 1) {
+                faceConnLength++;
+            }
+        }
+    }
+    // cout << "\n\n" << faceConnLength << "\n" << SpFToF;
+    VectorXi faces1(faceConnLength);
+    VectorXi faces2(faceConnLength);
+    int faceidx = 0;
+    for (int i = 0; i < totFaces; i++) {
+        for (int j = 0; j < totFaces; j++) {
+            if (SpFToF.coeff(i, j) == 1) {
+                faces1(faceidx) = i;
+                faces2(faceidx) = j;
+                faceidx++;
+            }
+        }
+    }
+
+    // Convert face number to element and face numbers
+    VectorXi element1(faceConnLength);
+    VectorXi element2(faceConnLength);
+    VectorXi face1(faceConnLength);
+    VectorXi face2(faceConnLength);
+    for (int i = 0; i < faceConnLength; i++) {
+        element1(i) = faces1(i) / numFaces;
+        face1(i) = faces1(i) % numFaces;
+        element2(i) = faces2(i) / numFaces;
+        face2(i) = faces2(i) % numFaces;
+    }
+
+    // Rearrange into EToE and EToF
+    MatrixXi EToE_input(K, numFaces);
+    MatrixXi EToF_input(K, numFaces);
+    for (int i = 0; i < K; i++) {
+        for(int j = 0; j < numFaces; j++) {
+            EToE_input(i, j) = i;
+            EToF_input(i, j) = j;
+        }
+    }
+    for(int i = 0; i < faceConnLength; i++) {
+        EToE_input(element1(i), face1(i)) = element2(i);
+        EToF_input(element1(i), face1(i)) = face2(i);
+    }
+    EToE = EToE_input;
+    EToF = EToF_input;
+
+
+    /* int EToV[K][2]; // each row represents element: contains two values from vx for left and right points
     for (int i = 0; i < K; i++) {
         for (int j = 0; j < 2; j++) {
             EToV[i][j] = EToV_eigen(i, j);
@@ -154,7 +249,96 @@ void Connect1D(MatrixXd EToV_eigen) {
         FToF[i][i] = 0; // effectively works as identity matrix subtraction operation 
     }
 
-    cout << "hello!" << "\n";
+    cout << "hello!" << "\n"; */
+}
+
+void BuildMaps1D(MatrixXi fmask, MatrixXi EToE, MatrixXi EToF, MatrixXi& vmapM, MatrixXi& vmapP, VectorXi& vmapB, VectorXi& mapB) {
+    // Using flattened 3D to 2D matrices, access using (numFaces * i + j, k)
+    vmapM.resize(Nfp * numFaces, K);
+    vmapP.resize(Nfp * numFaces, K);
+    vmapM = MatrixXi::Zero(Nfp * numFaces, K);
+    vmapP = MatrixXi::Zero(Nfp * numFaces, K);
+
+    MatrixXi nodeids(N + 1, K);
+    for (int j = 0; j < K; j++) {
+        for (int i = 0; i < N + 1; i++) {
+            nodeids(i, j) = i + j * (N + 1);
+        }
+    }
+    // cout << nodeids << "\n\n";
+
+    for (int k1 = 0; k1 < K; k1++) {
+        for (int f1 = 0; f1 < numFaces; f1++) {
+            // Finding index of face nodes w/ respect to volume node order
+            for (int i = 0; i < Nfp; i++) {
+                vmapM(numFaces * i + f1, k1) = nodeids(fmask(f1, i), k1);
+            }
+        }
+    }
+    for (int k1 = 0; k1 < K; k1++) {
+        for (int f1 = 0; f1 < numFaces; f1++) {
+            // Find neighbor
+            int k2 = EToE(k1, f1);
+            int f2 = EToF(k1, f1);
+
+            // Find volume node numbers of left and right nodes
+            VectorXi vidM(Nfp);
+            VectorXi vidP(Nfp);
+            VectorXd x1(Nfp);
+            VectorXd x2(Nfp);
+            VectorXd D(Nfp);
+            for (int i = 0; i < Nfp; i++) {
+                vidM(i) = vmapM(numFaces * i + f2, k2);
+                vidP(i) = vmapM(numFaces * i + f2, k2);
+                x1(i) = x(vidM(i));
+                x2(i) = x(vidP(i));
+                D(i) = pow(x1(i) - x2(i), 2);
+
+                if (D(i) < node_tolerance) {
+                    vmapP(numFaces * i + f1, k1) = vidP(i);
+                }
+            }
+        }
+    }
+
+    // Create list of boundary nodes
+    int mapBLength = 0;
+    for (int i = 0; i < Nfp; i++) {
+        for (int j = 0; j < numFaces; j++) {
+            for (int k = 0; k < K; k++) {
+                if (vmapP(numFaces * i + j, k) == vmapM(numFaces * i + j, k)) {
+                    mapBLength++;
+                }
+            }
+        }
+    }
+    MatrixXi mapBMatrix(mapBLength, 3);
+    int mapBidx = 0;
+    for (int k = 0; k < K; k++) {
+        for (int j = 0; j < numFaces; j++) {
+            for (int i = 0; i < Nfp; i++) {
+                if (vmapP(numFaces * i + j, k) == vmapM(numFaces * i + j, k)) {
+                    mapBMatrix(mapBidx, 0) = i;
+                    mapBMatrix(mapBidx, 1) = j;
+                    mapBMatrix(mapBidx, 2) = k;
+                    mapBidx++;
+                }
+            }
+        }
+    }
+    // cout << mapBMatrix << "\n\n";
+    mapB.resize(mapBLength);
+    vmapB.resize(mapBLength);
+    for (int i = 0; i < mapBLength; i++) {
+        mapB(i) = mapBMatrix(i, 0) + mapBMatrix(i, 1) * Nfp + mapBMatrix(i, 2) * Nfp * numFaces;
+        vmapB(i) = vmapM(numFaces * mapBMatrix(i, 0) + mapBMatrix(i, 1), mapBMatrix(i, 2));
+    }
+
+    // Create specific left (inflow) and right (outflow) maps
+    mapI = 0;
+    mapO = K * numFaces - 1;
+    vmapI = 0;
+    vmapO = K * (N + 1) - 1;
 }
 
 void startup(VectorXd VX, MatrixXd EToV, int K) {
@@ -178,6 +362,7 @@ void startup(VectorXd VX, MatrixXd EToV, int K) {
 
     // MatrixXd Dr(r_length, r_length);
     Dr = Dmatrix1D(r, r_length, N, V);
+    cout << Dr << "\n\n";
 
     // Surface integral terms
     // MatrixXd LIFT(r_length, numFaces * Nfp);
@@ -192,6 +377,7 @@ void startup(VectorXd VX, MatrixXd EToV, int K) {
     VectorXd r_intermediary(r_length);
     r_intermediary = r + VectorXd::Ones(r_length);
     x = VectorXd::Ones(N + 1) * VX(va).transpose() + 0.5 * r_intermediary * (VX(vb) - VX(va)).transpose();
+    // cout << x << "\n\n";
 
     // MatrixXd J(r_length, K);
     J = Jacobian1D(x, Dr, r_length);
@@ -215,8 +401,8 @@ void startup(VectorXd VX, MatrixXd EToV, int K) {
             fmask2_length += 1;
         }
     }
-    VectorXd fmask1(fmask1_length);
-    VectorXd fmask2(fmask2_length);
+    VectorXi fmask1(fmask1_length);
+    VectorXi fmask2(fmask2_length);
     int fm1idx = 0;
     int fm2idx = 0;
     for (int i = 0; i < r_length; i++) {
@@ -229,7 +415,7 @@ void startup(VectorXd VX, MatrixXd EToV, int K) {
             fm2idx++;
         }
     } // Something about doing it this way seems really inefficient, but I'm not sure yet how to go about using dynamic array sizes like in python
-    MatrixXd fmask(2, fmask1_length); // we're assuming fmask1_length = fmask2_length = 1
+    MatrixXi fmask(2, fmask1_length); // we're assuming fmask1_length = fmask2_length = 1
     for (int i = 0; i < fmask1_length; i++) {
         fmask(0, i) = fmask1(i);
         fmask(1, i) = fmask2(i);
@@ -243,9 +429,9 @@ void startup(VectorXd VX, MatrixXd EToV, int K) {
     }
 
     // Build surface normals and inverse metric at surface
-    MatrixXd nx(Nfp * numFaces, K);
+    // MatrixXd nx(Nfp * numFaces, K);
     nx = Normals1D(Nfp, numFaces, K);
-    MatrixXd Fscale(2, K);
+    // MatrixXd Fscale(2, K);
     for (int i = 0; i < K; i++) {
         int a = fmask1(0);
         int b = fmask2(0);
@@ -254,23 +440,132 @@ void startup(VectorXd VX, MatrixXd EToV, int K) {
     }
 
     // Build connectivity matrix
-    
+    // All matrices passed in by reference are dynamic, resized in Connect1D
+    /* int numFaces = 2;
+    MatrixXi EToE(K, numFaces);
+    MatrixXi EToF(K, numFaces); */
+    Connect1D(EToV, EToE, EToF);
+    cout << "\n\n" << EToE << "\n\n" << EToF << "\n\n";
+
+    // Build connectivity maps
+    // All matrices and vectors passed in by reference are dynamic, resized in BuildMaps1D
+    /* MatrixXi vmapM;
+    MatrixXi vmapP;
+    VectorXi mapB;
+    VectorXi vmapB; */
+    BuildMaps1D(fmask, EToE, EToF, vmapM, vmapP, vmapB, mapB);
+    cout << vmapM << "\n\n";
+    cout << vmapP << "\n\n";
+    cout << vmapB << "\n\n";
 }
 
-void AdvecRHS1D(VectorXd u, double time, double a) {
+void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
+    // Flatten vmapM and vmapP
+    /* VectorXi vmapMF(Nfp * numFaces * K);
+    VectorXi vmapPF(Nfp * numFaces * K);
+    for (int k = 0; k < K; k++) {
+        for (int j = 0; j < numFaces; j++) {
+            for (int i = 0; i < Nfp; i++) {
+                vmapMF(i + j * Nfp + k * numFaces * Nfp) = vmapM(numFaces * i + j, k);
+                vmapPF(i + j * Nfp + k * numFaces * Nfp) = vmapP(numFaces * i + j, k);
+            }
+        }
+    } */
+
+    // Form field differences at faces
     int alpha = 1;
     MatrixXd du(Nfp * numFaces, K);
     du = MatrixXd::Zero(Nfp * numFaces, K);
-    // du(:) = u(vmapM) - u(vmapP)) .* (a * nx(:) ... blah blah
+    VectorXd duF(Nfp * numFaces * K);
+    duF = VectorXd::Zero(Nfp * numFaces * K);
+    int iVM, kVM, iVP, kVP = 0;
+    double assignVal = 0.0;
+    for (int i = 0; i < Nfp; i++) {
+        for (int j = 0; j < numFaces; j++) {
+            // This line is incorrect. Flatten du down to a single vector, and then figure out how the single index value going into u returns a value from the 2d matrix.
+            // du(i, j) = (u(vmapMF(i), j) - u(vmapPF(i), j)) * (a * nx(i, j) - (1 - alpha) * abs(a * nx(i, j))) / 2.0;
+
+            // duF(i) = (uF(vmapMF(i)) - uF(vmapPF(i))) * (a * nxF(i) - (1 - alpha) * abs(a * nxF(i))) / 2.0;
+            // duF(i + j * Nfp + k * numFaces * Nfp) = du(numFaces * i + j, k);
+            // uF(i + j * Nfp + k * numFaces * Nfp) = u(numFaces * i + j, k);
+            // vmapMF(i + j * Nfp + k * numFaces * Nfp) = vmapM(numFaces * i + j, k);
+            // i + j * Nfp + k * numFaces * Nfp = vmapMF(i + j * Nfp + k * numFaces * Nfp) = vmapM(numFaces * i + j, k);
+            // kVM = vmapM(numFaces * i + j, k) / (numFaces * Nfp);
+            /* if (Nfp < 2) {
+                jVM = vmapM(numFaces * i + j, k) % (numFaces * Nfp);
+            } else {
+                iVM = (vmapM(numFaces * i + j, k) % (numFaces * Nfp)) % Nfp;
+                jVM = (vmapM(numFaces * i + j, k) % (numFaces * Nfp)) / Nfp;
+            }*/
+            // uF(vmapMF(i)) = u(numFaces * iVM + jVM, kVM);
+            // nxF(i + j * Nfp + k * numFaces * Nfp) = nx(numFaces * i + j, k);
+
+            for (int k = 0; k < K; k++) {
+                kVM = vmapM(numFaces * i + j, k) / (N + 1);
+                kVP = vmapP(numFaces * i + j, k) / (N + 1);
+                iVM = vmapM(numFaces * i + j, k) % (N + 1);
+                iVP = vmapP(numFaces * i + j, k) % (N + 1);
+                
+                assignVal = (u(iVM, kVM) - u(iVP, kVP)) * (a * nx(numFaces * i + j, k) - (1 - alpha) * abs(a * nx(numFaces * i + j, k))) / 2.0;
+                du(numFaces * i + j, k) = assignVal;
+                duF(i + j * Nfp + k * numFaces * Nfp) = assignVal;
+            }
+        }
+    }
 
     // Impose boundary condition at x = 0;
     double uin = -sin(a * time);
-    // more blah blah
+    int kVI, iVI, knxI, jnxI, inxI = 0;
+    kVI = vmapI / (N + 1);
+    iVI = vmapI % (N + 1);
+    knxI = mapI / (numFaces * Nfp);
+    if (Nfp < 2) {
+        jnxI = mapI % (numFaces * Nfp);
+        inxI = 0;
+    } else {
+        inxI = (mapI % (numFaces * Nfp)) % Nfp;
+        jnxI = (mapI % (numFaces * Nfp)) / Nfp;
+    }
+    // duF(mapI) = (uF(vmapI) - uin) * (a * nxF(mapI) - (1 - alpha) * abs(a * nxF(mapI))) / 2.0;
+    // duF(mapO) = 0.0;
+    assignVal = (u(iVI, kVI) - uin) * (a * nx(numFaces * inxI + jnxI, knxI) - (1 - alpha) * abs(a * nx(numFaces * inxI + jnxI, knxI))) / 2.0;
+    // cout << assignVal << " " << numFaces * inxI + jnxI << " " << knxI << "\n";
+    du(numFaces * inxI + jnxI, knxI) = assignVal;
+    duF(mapI) = assignVal;
+    int knxO, jnxO, inxO = 0;
+    knxO = mapO / (numFaces * Nfp);
+    if (Nfp < 2) {
+        jnxO = mapO % (numFaces * Nfp);
+        inxO = 0;
+    } else {
+        inxO = (mapO % (numFaces * Nfp)) % Nfp;
+        jnxO = (mapO % (numFaces * Nfp)) / Nfp;
+    }
+    du(numFaces * inxO + jnxO, knxO) = 0.0;
+    duF(mapO) = 0.0;
 
     // Compute right hand sides of the semi-discrete PDE
+    // rhsu = -a * rx .* (Dr * u) + LIFT * (Fscale .* (du));
+    rhsu.resize(N + 1, K);
+    rhsu = -a * (rx.array() * (Dr * u).array()).matrix() + LIFT * (Fscale.array() * du.array()).matrix();
+    
+    // cout << "left du input coords: (" << numFaces * inxI + jnxI << ", " << knxI << ")\n";
+    // cout << "du(mapI): " << assignVal << "\n\n";
 }
 
 MatrixXd Advec1D(MatrixXd u, double finalTime) {
+    // First part of output, for original values
+    ofstream file("results_HO.txt");
+	file << N << "\n"; // For graphing script, communicated order to graph
+    file << K << "\n" << "\n"; // For graphing script, communicated number of elements to graph
+    for (int i = 0; i < K; i++) {
+        for (int j = 0; j < N; j++) {
+            file << u(j, i) << ", ";
+        }
+        file << u(N, i) << "\n";
+    }
+    file << "\n";
+
     MatrixXd u_copy(N + 1, K);
     u_copy = u;
     double time = 0;
@@ -298,13 +593,33 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
     double a = 2 * M_PI;
 
     // Outer time step loop
+    MatrixXd rhsu; // dynamically sized and passed by reference
     for (int tstep = 0; tstep < numSteps; tstep++) {
         for (int INTRK = 0; INTRK < 5; INTRK++) {
             double localTime = time + rk4c(INTRK) * dt;
-            // AdvecRHS1D line, but use u_copy
-            // resu = rk4a(INTRK) * resu + dt * rhsu;
-            // u_copy = u_copy + rk4b(INTRK) * resu;
+
+            // AdvecRHS1D line uses u_copy
+            AdvecRHS1D(u_copy, localTime, a, rhsu);
+
+            resu = rk4a(INTRK) * resu + dt * rhsu;
+            u_copy = u_copy + rk4b(INTRK) * resu;
         }
+
+        if (tstep < 50) {
+            // cout << "u at timestep " << tstep + 1 << ":\n";
+            // cout << u_copy << "\n\n";
+            cout << rhsu << "\n\n";
+        }
+
+        // Writing to file
+        for (int i = 0; i < K; i++) {
+            for (int j = 0; j < N; j++) {
+                file << u_copy(j, i) << ", ";
+            }
+            file << u_copy(N, i) << "\n";
+        }
+        file << "\n";
+        
         // Increment time
         time = time + dt;
     }
