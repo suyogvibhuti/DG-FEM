@@ -12,7 +12,7 @@ using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 8;
+const int K = 16;
 const int N = 4; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
@@ -76,7 +76,7 @@ int main() {
     MatrixXd EToV(K, 2);
 
     // Uniform grid generation case
-    double xMax = 32.0;
+    double xMax = 10.0;
     double xMin = 0.0;
     for (int i = 0; i < K + 1; i++) {
         VX(i) = xMin + (xMax - xMin) * static_cast<double>(i) / static_cast<double>(K);
@@ -377,7 +377,7 @@ void startup(VectorXd VX, MatrixXd EToV, int K) {
     VectorXd r_intermediary(r_length);
     r_intermediary = r + VectorXd::Ones(r_length);
     x = VectorXd::Ones(N + 1) * VX(va).transpose() + 0.5 * r_intermediary * (VX(vb) - VX(va)).transpose();
-    // cout << x << "\n\n";
+    cout << x << "\n\n";
 
     // MatrixXd J(r_length, K);
     J = Jacobian1D(x, Dr, r_length);
