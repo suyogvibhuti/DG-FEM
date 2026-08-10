@@ -583,7 +583,8 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
             xmin = xmintemp;
         }
     }
-    double CFL = 0.75;
+    // double CFL = 0.75;
+    double CFL = 0.25;
     double dt = CFL * xmin / (2 * M_PI);
     dt = dt * 0.5;
     int numSteps = static_cast<int>(ceil(finalTime / dt));
