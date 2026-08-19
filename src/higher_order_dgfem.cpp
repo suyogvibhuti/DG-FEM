@@ -12,8 +12,8 @@ using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 16;
-const int N = 4; // Moving to arbitrary order, generalizing matrices and procedures
+const int K = 32;
+const int N = 8; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
 const double node_tolerance = pow(10.0, -10.0);
@@ -79,7 +79,7 @@ int main() {
     double xMax = 10.0;
     double xMin = 0.0;
     for (int i = 0; i < K + 1; i++) {
-        VX(i) = xMin + (xMax - xMin) * static_cast<double>(i) / static_cast<double>(K);
+        VX(i) = xMin + (xMax - xMin) * static_cast<double>(i) / K;
     }
     for (int i = 0; i < K; i++) {
         EToV(i, 0) = i;
@@ -583,8 +583,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
             xmin = xmintemp;
         }
     }
-    // double CFL = 0.75;
-    double CFL = 0.05;
+    double CFL = 0.75;
     double dt = CFL * xmin / (2 * M_PI);
     dt = dt * 0.5;
     int numSteps = static_cast<int>(ceil(finalTime / dt));
@@ -609,7 +608,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
         if (tstep < 50) {
             // cout << "u at timestep " << tstep + 1 << ":\n";
             // cout << u_copy << "\n\n";
-            cout << rhsu << "\n\n";
+            // cout << rhsu << "\n\n";
         }
 
         // Writing to file
@@ -625,6 +624,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
         time = time + dt;
     }
 
+    cout << "dt: " << dt << "\n";
     return u_copy;
 }
 
@@ -765,6 +765,7 @@ VectorXd GradJacobiP(VectorXd r, int r_length, int alpha, int beta, int N) {
 MatrixXd GradVandermonde1D(VectorXd r, int r_length, int N) {
     // Compiles Jacobi derivatives to create Vandermonde gradient
     MatrixXd dVr(r_length, N + 1);
+    dVr = MatrixXd::Zero(r_length, N + 1);
 
     for (int i = 0; i < N + 1; i++) {
         VectorXd dVrCol(r_length);
@@ -790,6 +791,7 @@ MatrixXd Dmatrix1D(VectorXd r, int r_length, int N, MatrixXd Vandermonde) {
 
 MatrixXd Lift1D(int r_length, int N, int Nfaces, int Nfp, MatrixXd Vandermonde) {
     MatrixXd EMat(N + 1, Nfaces * Nfp);
+    EMat = MatrixXd::Zero(N + 1, Nfaces * Nfp);
     EMat(0, 0) = 1.0;
     EMat(N, 1) = 1.0;
 
