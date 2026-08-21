@@ -63,6 +63,7 @@ MatrixXd Jacobian1D(MatrixXd x, MatrixXd Dr, int r_length);
 MatrixXd Normals1D(int Nfp, int Nfaces, int K);
 void AdvecRHS1D(VectorXd u, double time, double a);
 MatrixXd Advec1D(MatrixXd u, double finalTime);
+double sqsin(double x);
 
 int main() {
     // For arbitrary order need to use lagrange interpolation on nodal system (at node pts approximation equals analytical solution)
@@ -76,11 +77,25 @@ int main() {
     MatrixXd EToV(K, 2);
 
     // Uniform grid generation case
-    double xMax = 10.0;
+    /* double xMax = 10.0;
     double xMin = 0.0;
     for (int i = 0; i < K + 1; i++) {
         VX(i) = xMin + (xMax - xMin) * static_cast<double>(i) / K;
     }
+    for (int i = 0; i < K; i++) {
+        EToV(i, 0) = i;
+        EToV(i, 1) = i + 1;
+    } */
+
+    // Non-uniform grid generation case (in this case just to test if any non-uniform grid works, should use something interesting later)
+    double xMax = 10.0;
+    double xMin = 0.0;
+    VX(0) = 0.0;
+    for (int i = 1; i < K; i++) {
+        VX(i) = xMin + (xMax - xMin) / K;
+        xMin += VX(i);
+    }
+    VX(K) = xMax;
     for (int i = 0; i < K; i++) {
         EToV(i, 0) = i;
         EToV(i, 1) = i + 1;
@@ -92,7 +107,8 @@ int main() {
     MatrixXd u(N + 1, K);
     for (int i = 0; i < N + 1; i++) {
         for (int j = 0; j < K; j++) {
-            u(i, j) = sin(x(i, j));
+            // u(i, j) = sin(x(i, j));
+            u(i, j) = sqsin(x(i, j));
         }
     }
 
@@ -514,7 +530,8 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
     }
 
     // Impose boundary condition at x = 0;
-    double uin = -sin(a * time);
+    // double uin = -sin(a * time);
+    double uin = -sqsin(a * time);
     int kVI, iVI, knxI, jnxI, inxI = 0;
     kVI = vmapI / (N + 1);
     iVI = vmapI % (N + 1);
@@ -642,6 +659,10 @@ VectorXd JacobiGQ(int alpha, int beta, int N) {
     double** J = new double*[N + 1];
     for (int i = 0; i < N + 1; i++) {
         J[i] = new double[N + 1];
+        for (int j = 0; j < N + 1; j++) {
+            // Making sure every value starts at 0.0 to prevent memory issues
+            J[i][j] = 0.0;
+        }
         J[i][i] = -static_cast<double>(alpha * alpha - beta * beta) / ((h1[i] + 2) * h1[i]); // For a=b=0, equals 0. for gauss-lobatto, since a=b=1, doesn't equal 0.
     }
     for (int i = 1; i < N + 1; i++) {
@@ -653,6 +674,7 @@ VectorXd JacobiGQ(int alpha, int beta, int N) {
     }
 
     MatrixXd mat(N + 1, N + 1);
+    mat = MatrixXd::Zero(N + 1, N + 1);
     for (int i = 0; i < N + 1; i++) {
         for (int j = 0; j < N + 1; j++) {
             // cout << J[i][j] << " ";
@@ -661,7 +683,7 @@ VectorXd JacobiGQ(int alpha, int beta, int N) {
         // cout << "\n";
     }
     // cout << "\n";
-    // cout << mat;
+    // cout << mat << "\n";
     SelfAdjointEigenSolver<MatrixXd> solver(mat);
     VectorXd x(N + 1);
     VectorXcd J_eigenvalues = solver.eigenvalues();
@@ -674,6 +696,7 @@ VectorXd JacobiGQ(int alpha, int beta, int N) {
 
 VectorXd JacobiGL(int alpha, int beta, int N) {
     VectorXd x(N + 1);
+    x = VectorXd::Zero(N + 1);
     x(0) = -1.0;
     x(N) = 1.0;
     if (N > 1) {
@@ -823,4 +846,17 @@ MatrixXd Normals1D(int Nfp, int Nfaces, int K) {
     }
 
     return nx;
+}
+
+double sqsin(double x) {
+    // Used to create square waveform for testing
+    double resultVal = sin(x);
+
+    if (resultVal < 0.0) {
+        resultVal = -1.0;
+    } else {
+        resultVal = 1.0;
+    }
+
+    return resultVal;
 }
