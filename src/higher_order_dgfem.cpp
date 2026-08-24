@@ -12,7 +12,7 @@ using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 32;
+const int K = 64;
 const int N = 16; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
