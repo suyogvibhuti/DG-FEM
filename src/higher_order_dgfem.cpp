@@ -77,7 +77,7 @@ int main() {
     MatrixXd EToV(K, 2);
 
     // Uniform grid generation case
-    double xMax = 10.0;
+    /* double xMax = 10.0;
     double xMin = 0.0;
     for (int i = 0; i < K + 1; i++) {
         VX(i) = xMin + (xMax - xMin) * static_cast<double>(i) / K;
@@ -85,21 +85,26 @@ int main() {
     for (int i = 0; i < K; i++) {
         EToV(i, 0) = i;
         EToV(i, 1) = i + 1;
-    }
+    } */
 
     // Non-uniform grid generation case (in this case just to test if any non-uniform grid works, should use something interesting later)
-    /* double xMax = 10.0;
+    double xMax = 10.0;
     double xMin = 0.0;
+    double xDiff = xMax - xMin;
     VX(0) = 0.0;
-    for (int i = 1; i < K; i++) {
-        VX(i) = xMin + (xMax - xMin) / K;
-        xMin += VX(i);
+    for (int i = 1; i < K + 1; i++) {
+        double nucst = 1.5;
+        if (i % 2 == 1) {
+            nucst = 0.5;
+        }
+        VX(i) = xMin + nucst * (xDiff / K);
+        xMin += nucst * (xDiff / K);
+        // cout << "xMIN: " << xMin << "\n";
     }
-    VX(K) = xMax;
     for (int i = 0; i < K; i++) {
         EToV(i, 0) = i;
         EToV(i, 1) = i + 1;
-    } */
+    }
 
     startup(VX, EToV, K);
 
@@ -107,8 +112,8 @@ int main() {
     MatrixXd u(N + 1, K);
     for (int i = 0; i < N + 1; i++) {
         for (int j = 0; j < K; j++) {
-            // u(i, j) = sin(x(i, j));
-            u(i, j) = sqsin(x(i, j));
+            u(i, j) = sin(x(i, j));
+            // u(i, j) = sqsin(x(i, j));
         }
     }
 
@@ -530,8 +535,8 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
     }
 
     // Impose boundary condition at x = 0;
-    // double uin = -sin(a * time);
-    double uin = -sqsin(a * time);
+    double uin = -sin(a * time);
+    // double uin = -sqsin(a * time);
     int kVI, iVI, knxI, jnxI, inxI = 0;
     kVI = vmapI / (N + 1);
     iVI = vmapI % (N + 1);
