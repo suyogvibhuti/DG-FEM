@@ -12,8 +12,8 @@ using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 64;
-const int N = 8; // Moving to arbitrary order, generalizing matrices and procedures
+const int K = 32;
+const int N = 16; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
 const double node_tolerance = pow(10.0, -10.0);
