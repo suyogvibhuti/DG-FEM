@@ -112,8 +112,8 @@ int main() {
     MatrixXd u(N + 1, K);
     for (int i = 0; i < N + 1; i++) {
         for (int j = 0; j < K; j++) {
-            u(i, j) = sin(x(i, j));
-            // u(i, j) = sqsin(x(i, j));
+            // u(i, j) = sin(x(i, j));
+            u(i, j) = sqsin(x(i, j));
         }
     }
 
@@ -535,8 +535,8 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
     }
 
     // Impose boundary condition at x = 0;
-    double uin = -sin(a * time);
-    // double uin = -sqsin(a * time);
+    // double uin = -sin(a * time);
+    double uin = -sqsin(a * time);
     int kVI, iVI, knxI, jnxI, inxI = 0;
     kVI = vmapI / (N + 1);
     iVI = vmapI % (N + 1);
