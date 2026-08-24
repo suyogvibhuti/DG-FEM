@@ -12,7 +12,7 @@ using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 32;
+const int K = 64;
 const int N = 8; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
@@ -634,13 +634,17 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
         }
 
         // Writing to file
-        for (int i = 0; i < K; i++) {
+        // maybe not every timestep... so that results_HO doesn't become massive
+        int save_interval = static_cast<int>(0.1 / dt);
+        if ((tstep + 1) % save_interval == 0) {
+            for (int i = 0; i < K; i++) {
             for (int j = 0; j < N; j++) {
                 file << u_copy(j, i) << ", ";
             }
             file << u_copy(N, i) << "\n";
         }
         file << "\n";
+        }
         
         // Increment time
         time = time + dt;
