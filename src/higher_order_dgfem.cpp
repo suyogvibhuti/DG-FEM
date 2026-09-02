@@ -12,8 +12,8 @@ using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 16;
-const int N = 4; // Moving to arbitrary order, generalizing matrices and procedures
+const int K = 64;
+const int N = 16; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
 const double node_tolerance = pow(10.0, -10.0);
@@ -64,6 +64,13 @@ MatrixXd Normals1D(int Nfp, int Nfaces, int K);
 void AdvecRHS1D(VectorXd u, double time, double a);
 MatrixXd Advec1D(MatrixXd u, double finalTime);
 double sqsin(double x);
+
+// Filename
+string fileName = "results_HO_TM16.txt";
+// Test matrix:
+// N (one per row): 4, 8, 12, 16
+// K (one per col): 16, 32, 48, 64
+// filename numbering goes right then down, so tm2 would be the same row but next column, and if tm4 was the final column of the first row then tm5 would be the first column of the second row
 
 int main() {
     // For arbitrary order need to use lagrange interpolation on nodal system (at node pts approximation equals analytical solution)
@@ -577,7 +584,7 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
 
 MatrixXd Advec1D(MatrixXd u, double finalTime) {
     // First part of output, for original values
-    ofstream file("results_HO.txt");
+    ofstream file(fileName);
 	file << N << "\n"; // For graphing script, communicated order to graph
     file << K << "\n" << "\n"; // For graphing script, communicated number of elements to graph
     for (int i = 0; i < K; i++) {
