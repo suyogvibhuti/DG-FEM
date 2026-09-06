@@ -501,7 +501,7 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
     } */
 
     // Form field differences at faces
-    int alpha = 1;
+    int alpha = 0;
     MatrixXd du(Nfp * numFaces, K);
     du = MatrixXd::Zero(Nfp * numFaces, K);
     VectorXd duF(Nfp * numFaces * K);
