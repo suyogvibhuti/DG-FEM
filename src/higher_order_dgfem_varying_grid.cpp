@@ -901,8 +901,8 @@ void updateGrid(VectorXd& VX, MatrixXd& EToV, double time) {
     // Working on the new grid, EToV is same
     double stencil[20];
     for (int i = 0; i < 7; i++) {
-        stencil[i] = 0.1;
-        stencil[19 - i] = 0.1;
+        stencil[i] = 0.01;
+        stencil[19 - i] = 0.01;
     }
     for (int i = 7; i < (20 - 7); i++) {
         stencil[i] = 0.5;
@@ -926,8 +926,8 @@ void updateGrid(VectorXd& VX, MatrixXd& EToV, double time) {
         } else {
             stencilSelect = (i - 1 - stencilOffset) % 20;
         }
-        VX(i) = xMin + stencil[stencilSelect] * (xDiff / K);
-        xMin += stencil[stencilSelect] * (xDiff / K);
+        VX(i) = xMin + stencil[stencilSelect] * (xDiff / K) * (20.0 / 3.14);
+        xMin += stencil[stencilSelect] * (xDiff / K) * (20.0 / 3.14);
         // cout << "xMIN: " << xMin << "\n";
     }
     // cout << "updated\n";

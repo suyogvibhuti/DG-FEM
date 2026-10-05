@@ -8,6 +8,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
 #include <Eigen/SparseCore>
+#include <chrono>
 using namespace std;
 using namespace Eigen;
 
@@ -84,7 +85,7 @@ int main() {
     MatrixXd EToV(K, 2);
 
     // Uniform grid generation case
-    /* double xMax = 10.0;
+    double xMax = 10.0;
     double xMin = 0.0;
     for (int i = 0; i < K + 1; i++) {
         VX(i) = xMin + (xMax - xMin) * static_cast<double>(i) / K;
@@ -92,10 +93,10 @@ int main() {
     for (int i = 0; i < K; i++) {
         EToV(i, 0) = i;
         EToV(i, 1) = i + 1;
-    } */
+    }
 
     // Non-uniform grid generation case (in this case just to test if any non-uniform grid works, should use something interesting later)
-    double xMax = 10.0;
+    /* double xMax = 10.0;
     double xMin = 0.0;
     double xDiff = xMax - xMin;
     VX(0) = 0.0;
@@ -111,7 +112,7 @@ int main() {
     for (int i = 0; i < K; i++) {
         EToV(i, 0) = i;
         EToV(i, 1) = i + 1;
-    }
+    } */
 
     startup(VX, EToV, K);
 
@@ -119,8 +120,8 @@ int main() {
     MatrixXd u(N + 1, K);
     for (int i = 0; i < N + 1; i++) {
         for (int j = 0; j < K; j++) {
-            // u(i, j) = sin(x(i, j));
-            u(i, j) = sqsin(x(i, j));
+            u(i, j) = sin(x(i, j));
+            // u(i, j) = sqsin(x(i, j));
         }
     }
 
@@ -542,8 +543,8 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
     }
 
     // Impose boundary condition at x = 0;
-    // double uin = -sin(a * time);
-    double uin = -sqsin(a * time);
+    double uin = -sin(a * time);
+    // double uin = -sqsin(a * time);
     int kVI, iVI, knxI, jnxI, inxI = 0;
     kVI = vmapI / (N + 1);
     iVI = vmapI % (N + 1);
@@ -621,6 +622,9 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
     // Advection speed
     double a = 2 * M_PI;
 
+    // Start elapsed time conter
+    auto start = std::chrono::high_resolution_clock::now();
+
     // Outer time step loop
     MatrixXd rhsu; // dynamically sized and passed by reference
     for (int tstep = 0; tstep < numSteps; tstep++) {
@@ -658,6 +662,14 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
     }
 
     cout << "dt: " << dt << "\n";
+    file << dt << "\n";
+
+    // End elapsed time counter and calculate difference
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    cout << "elapsed time: " << duration.count() << " milliseconds\n";
+    file << duration.count() << "\n";
+
     return u_copy;
 }
 
