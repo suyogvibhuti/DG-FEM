@@ -627,6 +627,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
 
     // Outer time step loop
     MatrixXd rhsu; // dynamically sized and passed by reference
+    int countchecker = 0;
     for (int tstep = 0; tstep < numSteps; tstep++) {
         for (int INTRK = 0; INTRK < 5; INTRK++) {
             double localTime = time + rk4c(INTRK) * dt;
@@ -649,12 +650,13 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
         int save_interval = static_cast<int>(0.1 / dt);
         if (((tstep + 1) % save_interval == 0) || ((tstep + 1) == numSteps)) {
             for (int i = 0; i < K; i++) {
-            for (int j = 0; j < N; j++) {
-                file << u_copy(j, i) << ", ";
+                for (int j = 0; j < N; j++) {
+                    file << u_copy(j, i) << ", ";
+                }
+                file << u_copy(N, i) << "\n";
             }
-            file << u_copy(N, i) << "\n";
-        }
-        file << "\n";
+            file << "\n";
+            countchecker++;
         }
         
         // Increment time
@@ -662,6 +664,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
     }
 
     cout << "dt: " << dt << "\n";
+    cout << "countchecker: " << countchecker << "\n";
     file << dt << "\n";
 
     // End elapsed time counter and calculate difference
@@ -669,6 +672,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     cout << "elapsed time: " << duration.count() << " milliseconds\n";
     file << duration.count() << "\n";
+    file << countchecker << "\n";
 
     return u_copy;
 }
