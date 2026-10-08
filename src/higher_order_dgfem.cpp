@@ -502,7 +502,7 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
     } */
 
     // Form field differences at faces
-    int alpha = 1.0;
+    int alpha = 0.0;
     MatrixXd du(Nfp * numFaces, K);
     du = MatrixXd::Zero(Nfp * numFaces, K);
     VectorXd duF(Nfp * numFaces * K);
@@ -647,7 +647,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime) {
         // Writing to file
         // maybe not every timestep... so that results_HO doesn't become massive
         int save_interval = static_cast<int>(0.1 / dt);
-        if ((tstep + 1) % save_interval == 0) {
+        if (((tstep + 1) % save_interval == 0) || ((tstep + 1) == numSteps)) {
             for (int i = 0; i < K; i++) {
             for (int j = 0; j < N; j++) {
                 file << u_copy(j, i) << ", ";
