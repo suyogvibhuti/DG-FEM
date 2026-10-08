@@ -13,8 +13,8 @@ using namespace std;
 using namespace Eigen;
 
 // Constants
-const int K = 64;
-const int N = 16; // Moving to arbitrary order, generalizing matrices and procedures
+const int K = 16;
+const int N = 4; // Moving to arbitrary order, generalizing matrices and procedures
 const int numFaces = 2;
 const int Nfp = 1;
 const double node_tolerance = pow(10.0, -10.0);
@@ -67,7 +67,7 @@ MatrixXd Advec1D(MatrixXd u, double finalTime);
 double sqsin(double x);
 
 // Filename
-string fileName = "results_HO_TM16.txt";
+string fileName = "results_HO_TM1.txt";
 // Test matrix:
 // N (one per row): 4, 8, 12, 16
 // K (one per col): 16, 32, 48, 64
@@ -502,7 +502,7 @@ void AdvecRHS1D(MatrixXd u, double time, double a, MatrixXd& rhsu) {
     } */
 
     // Form field differences at faces
-    int alpha = 0;
+    int alpha = 1.0;
     MatrixXd du(Nfp * numFaces, K);
     du = MatrixXd::Zero(Nfp * numFaces, K);
     VectorXd duF(Nfp * numFaces * K);
